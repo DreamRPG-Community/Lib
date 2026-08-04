@@ -42,6 +42,7 @@ dependencies {
     compileOnly("com.destroystokyo.paper:paper-api:${paperApiVersion}")
 
     testImplementation("org.junit.jupiter:junit-jupiter-api:5.10.2")
+    testImplementation("com.destroystokyo.paper:paper-api:${paperApiVersion}")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.10.2")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher:1.10.2")
 }

@@ -2,6 +2,9 @@ package cn.mythicland.lib.command;
 
 import java.io.Serial;
 
+/**
+ * Signals that a command invocation has invalid arguments and should display its usage line.
+ */
 public final class CommandUsageException extends RuntimeException {
 
     @Serial
@@ -9,11 +12,21 @@ public final class CommandUsageException extends RuntimeException {
 
     private final String usage;
 
+    /**
+     * Creates a command usage failure.
+     *
+     * @param usage the usage line that should be shown to the sender
+     */
     public CommandUsageException(String usage) {
         super("Invalid command usage: " + usage);
         this.usage = usage;
     }
 
+    /**
+     * Returns the usage line associated with this failure.
+     *
+     * @return the command usage line
+     */
     public String usage() {
         return usage;
     }

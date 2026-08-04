@@ -4,6 +4,9 @@ import cn.mythicland.lib.api.LibApi;
 import org.bukkit.plugin.ServicePriority;
 import org.bukkit.plugin.java.JavaPlugin;
 
+/**
+ * Bukkit entry point that owns and publishes the shared {@link LibApi} service.
+ */
 public final class LibPlugin extends JavaPlugin {
 
     private LibApi api;
@@ -30,6 +33,11 @@ public final class LibPlugin extends JavaPlugin {
         api = null;
     }
 
+    /**
+     * Returns the service owned by this plugin.
+     *
+     * @return the active Lib service, or {@code null} after the plugin has been disabled
+     */
     public LibApi getApi() {
         return api;
     }
