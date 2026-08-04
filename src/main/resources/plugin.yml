@@ -1,0 +1,6 @@
+name: Lib
+version: ${version}
+main: cn.mythicland.lib.LibPlugin
+author: ShanguanLinG
+load: STARTUP
+description: Shared runtime library for self-written RPG plugins.
