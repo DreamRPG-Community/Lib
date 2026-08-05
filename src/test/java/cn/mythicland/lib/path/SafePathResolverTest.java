@@ -3,6 +3,7 @@ package cn.mythicland.lib.path;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
@@ -35,6 +36,8 @@ class SafePathResolverTest {
         assertThrows(IllegalArgumentException.class, () -> resolver.normalizeSingleSegment("nested/world"));
         assertThrows(IllegalArgumentException.class, () -> resolver.normalizeSingleSegment(".."));
         assertThrows(IllegalArgumentException.class, () -> resolver.normalizeSingleSegment(" world"));
+        assertThrows(IllegalArgumentException.class, () -> resolver.resolveRelative("../outside.yml"));
+        assertThrows(IllegalArgumentException.class, () -> resolver.resolveRelative("/absolute.yml"));
     }
 
     @Test
@@ -45,10 +48,10 @@ class SafePathResolverTest {
 
         try {
             Files.createSymbolicLink(linkedRoot, realRoot);
-        } catch (UnsupportedOperationException | SecurityException | java.io.IOException exception) {
+        } catch (UnsupportedOperationException | SecurityException | IOException exception) {
             return;
         }
 
-        assertThrows(java.io.IOException.class, () -> new SafePathResolver(linkedRoot).ensureRootDirectory());
+        assertThrows(IOException.class, () -> new SafePathResolver(linkedRoot).ensureRootDirectory());
     }
 }

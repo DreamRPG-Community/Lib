@@ -6,15 +6,7 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabCompleter;
 import org.bukkit.plugin.java.JavaPlugin;
 
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -34,7 +26,7 @@ public final class CommandRouter implements CommandExecutor, TabCompleter {
     /**
      * Creates a router for one root command.
      *
-     * @param owner the plugin whose logger handles unexpected command failures
+     * @param owner       the plugin whose logger handles unexpected command failures
      * @param rootCommand the root command used in usage messages
      * @throws NullPointerException if an argument is null
      */
@@ -51,7 +43,7 @@ public final class CommandRouter implements CommandExecutor, TabCompleter {
      * Registers a named subcommand and all of its aliases.
      *
      * @param subcommand the command to register
-     * @throws NullPointerException if {@code subcommand} is null
+     * @throws NullPointerException     if {@code subcommand} is null
      * @throws IllegalArgumentException if a name is blank or already registered
      */
     public void register(Subcommand subcommand) {
@@ -70,7 +62,7 @@ public final class CommandRouter implements CommandExecutor, TabCompleter {
      * the shared router.</p>
      *
      * @param subcommand the default action; its permission and usage are still applied
-     * @throws NullPointerException if {@code subcommand} is null
+     * @throws NullPointerException  if {@code subcommand} is null
      * @throws IllegalStateException if a default action has already been registered
      */
     public void registerDefault(Subcommand subcommand) {

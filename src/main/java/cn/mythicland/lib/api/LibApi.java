@@ -1,20 +1,25 @@
 package cn.mythicland.lib.api;
 
 import cn.mythicland.lib.command.CommandRouter;
+import cn.mythicland.lib.material.EnchantmentCatalog;
+import cn.mythicland.lib.material.MaterialCatalog;
+import cn.mythicland.lib.material.MaterialIconCatalog;
 import cn.mythicland.lib.menu.MenuService;
+import cn.mythicland.lib.path.PathService;
+import cn.mythicland.lib.storage.StorageService;
+import cn.mythicland.lib.web.EmbeddedHttpServer;
+import cn.mythicland.lib.web.WebService;
+import com.sun.net.httpserver.HttpHandler;
 import org.bukkit.Bukkit;
 import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitTask;
 
+import java.io.IOException;
 import java.util.Collections;
 import java.util.Objects;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 
@@ -28,6 +33,12 @@ public final class LibApi implements AutoCloseable {
 
     private final JavaPlugin owner;
     private final MenuService menuService;
+    private final MaterialCatalog materialCatalog;
+    private final MaterialIconCatalog materialIconCatalog;
+    private final EnchantmentCatalog enchantmentCatalog;
+    private final WebService webService;
+    private final StorageService storageService;
+    private final PathService pathService;
     private final ExecutorService asyncExecutor;
     private final Set<BukkitTask> scheduledTasks = Collections.newSetFromMap(new ConcurrentHashMap<>());
     private volatile boolean closed;
@@ -35,9 +46,9 @@ public final class LibApi implements AutoCloseable {
     /**
      * Creates a Lib service for its owning plugin.
      *
-     * @param owner the plugin that owns the service lifecycle and scheduler tasks
+     * @param owner    the plugin that owns the service lifecycle and scheduler tasks
      * @param poolSize the number of asynchronous worker threads
-     * @throws NullPointerException if {@code owner} is null
+     * @throws NullPointerException     if {@code owner} is null
      * @throws IllegalArgumentException if {@code poolSize} is less than one
      */
     public LibApi(JavaPlugin owner, int poolSize) {
@@ -47,15 +58,21 @@ public final class LibApi implements AutoCloseable {
     /**
      * Creates a Lib service with a shared menu service.
      *
-     * @param owner the plugin that owns the service lifecycle and scheduler tasks
-     * @param poolSize the number of asynchronous worker threads
+     * @param owner       the plugin that owns the service lifecycle and scheduler tasks
+     * @param poolSize    the number of asynchronous worker threads
      * @param menuService the shared menu service
      */
     public LibApi(JavaPlugin owner, int poolSize, MenuService menuService) {
         if (poolSize < 1) throw new IllegalArgumentException("poolSize must be positive");
         this.owner = Objects.requireNonNull(owner, "owner");
         this.menuService = Objects.requireNonNull(menuService, "menuService");
+        this.materialCatalog = MaterialCatalog.bundled();
+        this.materialIconCatalog = new MaterialIconCatalog();
+        this.enchantmentCatalog = EnchantmentCatalog.runtime();
         this.asyncExecutor = Executors.newFixedThreadPool(poolSize, namedThreadFactory());
+        this.webService = new WebService(asyncExecutor);
+        this.storageService = new StorageService();
+        this.pathService = new PathService();
     }
 
     /**
@@ -72,7 +89,7 @@ public final class LibApi implements AutoCloseable {
      *
      * @param plugin the dependent plugin requesting the service
      * @return the registered Lib service
-     * @throws NullPointerException if {@code plugin} is null
+     * @throws NullPointerException  if {@code plugin} is null
      * @throws IllegalStateException if Lib is not registered or has no provider
      */
     public static LibApi require(JavaPlugin plugin) {
@@ -93,7 +110,7 @@ public final class LibApi implements AutoCloseable {
      *
      * @param throwable the exception whose root message should be returned
      * @return the deepest non-blank exception message, or the deepest exception type when no
-     *         message is available
+     * message is available
      * @throws NullPointerException if {@code throwable} is null
      */
     public static String rootCauseMessage(Throwable throwable) {
@@ -139,7 +156,7 @@ public final class LibApi implements AutoCloseable {
      * Supplies a value on Lib's asynchronous executor.
      *
      * @param supplier the asynchronous value supplier
-     * @param <T> the supplied value type
+     * @param <T>      the supplied value type
      * @return a future completed with the supplied value
      * @throws NullPointerException if {@code supplier} is null
      */
@@ -166,7 +183,7 @@ public final class LibApi implements AutoCloseable {
      * Supplies a value on the Bukkit primary thread.
      *
      * @param supplier the primary-thread value supplier
-     * @param <T> the supplied value type
+     * @param <T>      the supplied value type
      * @return a future completed with the supplied value
      * @throws NullPointerException if {@code supplier} is null
      */
@@ -178,10 +195,10 @@ public final class LibApi implements AutoCloseable {
      * Schedules an action on the Bukkit primary thread after a delay.
      *
      * @param delayTicks the scheduler delay in server ticks
-     * @param action the action to execute
+     * @param action     the action to execute
      * @return the scheduled Bukkit task
      * @throws IllegalStateException if this service has been closed
-     * @throws NullPointerException if {@code action} is null
+     * @throws NullPointerException  if {@code action} is null
      */
     @SuppressWarnings("UnusedReturnValue")
     public BukkitTask runLater(long delayTicks, Runnable action) {
@@ -196,7 +213,7 @@ public final class LibApi implements AutoCloseable {
      * Creates a shared command router for a plugin command.
      *
      * @param commandOwner the plugin whose logger handles command failures
-     * @param rootCommand the command root used in usage messages
+     * @param rootCommand  the command root used in usage messages
      * @return a new command router
      * @throws NullPointerException if an argument is null
      */
@@ -214,12 +231,80 @@ public final class LibApi implements AutoCloseable {
     }
 
     /**
+     * Starts a plugin-owned HTTP server using Lib's asynchronous executor.
+     *
+     * @param bindAddress address to bind
+     * @param port        TCP port, or zero to select a free port
+     * @param handler     request handler
+     * @return a running HTTP server that the dependent plugin must close
+     * @throws IOException if the listener cannot bind
+     */
+    public EmbeddedHttpServer startHttpServer(
+            String bindAddress,
+            int port,
+            HttpHandler handler
+    ) throws IOException {
+        if (closed) throw new IllegalStateException("Lib API is closed");
+        return EmbeddedHttpServer.start(bindAddress, port, handler, asyncExecutor);
+    }
+
+    /**
+     * Returns the shared web infrastructure facade.
+     *
+     * @return web service
+     */
+    public WebService webService() {
+        return webService;
+    }
+
+    /**
+     * Returns the shared atomic storage facade.
+     *
+     * @return storage service
+     */
+    public StorageService storageService() {
+        return storageService;
+    }
+
+    /**
+     * Returns the shared safe path facade.
+     *
+     * @return path service
+     */
+    public PathService pathService() {
+        return pathService;
+    }
+
+    /**
      * Returns the shared menu lifecycle service.
      *
      * @return the menu service owned by Lib
      */
     public MenuService menuService() {
         return menuService;
+    }
+
+    /**
+     * Returns the shared localized legacy Bukkit material catalog.
+     *
+     * @return the immutable material catalog bundled with Lib
+     */
+    public MaterialCatalog materialCatalog() {
+        return materialCatalog;
+    }
+
+    /**
+     * Returns the shared legacy material icon resolver.
+     */
+    public MaterialIconCatalog materialIconCatalog() {
+        return materialIconCatalog;
+    }
+
+    /**
+     * Returns the shared runtime Bukkit enchantment catalog.
+     */
+    public EnchantmentCatalog enchantmentCatalog() {
+        return enchantmentCatalog;
     }
 
     /**

@@ -8,7 +8,7 @@ import java.nio.file.Path;
 import java.util.Objects;
 
 /**
- * Resolves single-segment paths below an immutable, normalized root directory.
+ * Resolves paths below an immutable, normalized root directory.
  *
  * @param root the normalized managed root directory
  */
@@ -44,35 +44,35 @@ public record SafePathResolver(Path root) {
      */
     public String normalizeSingleSegment(String logicalName) {
         if (logicalName == null || logicalName.isBlank()) {
-            throw new IllegalArgumentException("World name cannot be blank");
+            throw new IllegalArgumentException("Resource name cannot be blank");
         }
         if (!logicalName.equals(logicalName.trim())) {
-            throw new IllegalArgumentException("World name cannot start or end with whitespace");
+            throw new IllegalArgumentException("Resource name cannot start or end with whitespace");
         }
         if (logicalName.contains("/") || logicalName.contains("\\")) {
-            throw new IllegalArgumentException("World name must be a single directory segment");
+            throw new IllegalArgumentException("Resource name must be a single directory segment");
         }
         if (logicalName.equals(".") || logicalName.equals("..")) {
-            throw new IllegalArgumentException("World name cannot be a path traversal segment");
+            throw new IllegalArgumentException("Resource name cannot be a path traversal segment");
         }
         if (logicalName.chars().anyMatch(Character::isISOControl)) {
-            throw new IllegalArgumentException("World name cannot contain control characters");
+            throw new IllegalArgumentException("Resource name cannot contain control characters");
         }
 
         final Path segment;
         try {
             segment = Path.of(logicalName);
         } catch (InvalidPathException exception) {
-            throw new IllegalArgumentException("Invalid world name: " + logicalName, exception);
+            throw new IllegalArgumentException("Invalid resource name: " + logicalName, exception);
         }
 
         if (segment.isAbsolute() || segment.getNameCount() != 1) {
-            throw new IllegalArgumentException("World name must be a relative single directory segment");
+            throw new IllegalArgumentException("Resource name must be a relative single directory segment");
         }
 
         Path candidate = root.resolve(segment).normalize();
         if (!root.equals(candidate.getParent())) {
-            throw new IllegalArgumentException("World name escapes the managed root: " + logicalName);
+            throw new IllegalArgumentException("Resource name escapes the managed root: " + logicalName);
         }
         return segment.toString();
     }
@@ -85,7 +85,51 @@ public record SafePathResolver(Path root) {
      * @throws IllegalArgumentException if the name is invalid or escapes the root
      */
     public Path resolveSingleSegment(String logicalName) {
-        return root.resolve(normalizeSingleSegment(logicalName));
+        return resolveRelative(normalizeSingleSegment(logicalName));
+    }
+
+    /**
+     * Resolves a relative path below the root and rejects traversal and symbolic-link escapes.
+     *
+     * @param relativePath the relative path to resolve
+     * @return the normalized path below the root
+     * @throws IllegalArgumentException if the path is absolute, invalid, escapes the root, or
+     *                                  traverses a symbolic link
+     */
+    public Path resolveRelative(String relativePath) {
+        if (Files.isSymbolicLink(root)) {
+            throw new IllegalArgumentException("Managed root cannot be a symbolic link: " + root);
+        }
+        if (relativePath == null || relativePath.isBlank()) {
+            throw new IllegalArgumentException("Resource path cannot be blank");
+        }
+        if (relativePath.chars().anyMatch(Character::isISOControl)) {
+            throw new IllegalArgumentException("Resource path cannot contain control characters");
+        }
+
+        final Path relative;
+        try {
+            relative = Path.of(relativePath);
+        } catch (InvalidPathException exception) {
+            throw new IllegalArgumentException("Invalid resource path: " + relativePath, exception);
+        }
+        if (relative.isAbsolute()) {
+            throw new IllegalArgumentException("Resource path must be relative");
+        }
+
+        Path candidate = root.resolve(relative).normalize();
+        if (!candidate.startsWith(root) || candidate.equals(root)) {
+            throw new IllegalArgumentException("Resource path escapes the managed root: " + relativePath);
+        }
+
+        Path current = root;
+        for (Path segment : root.relativize(candidate)) {
+            current = current.resolve(segment);
+            if (Files.isSymbolicLink(current)) {
+                throw new IllegalArgumentException("Resource path traverses a symbolic link: " + relativePath);
+            }
+        }
+        return candidate;
     }
 
     /**

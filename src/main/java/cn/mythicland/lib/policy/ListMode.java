@@ -8,28 +8,25 @@ import java.util.Optional;
  */
 public enum ListMode {
 
-    /** Disables matching and allows every value. */
+    /**
+     * Disables matching and allows every value.
+     */
     DISABLED("disabled"),
 
-    /** Blocks values that are present in the list. */
+    /**
+     * Blocks values that are present in the list.
+     */
     BLACKLIST("blacklist"),
 
-    /** Blocks values that are absent from the list. */
+    /**
+     * Blocks values that are absent from the list.
+     */
     WHITELIST("whitelist");
 
     private final String configValue;
 
     ListMode(String configValue) {
         this.configValue = configValue;
-    }
-
-    /**
-     * Returns the stable configuration value for this mode.
-     *
-     * @return the lower-case configuration value
-     */
-    public String configValue() {
-        return configValue;
     }
 
     /**
@@ -45,5 +42,14 @@ public enum ListMode {
             if (mode.configValue.equals(normalized)) return Optional.of(mode);
         }
         return Optional.empty();
+    }
+
+    /**
+     * Returns the stable configuration value for this mode.
+     *
+     * @return the lower-case configuration value
+     */
+    public String configValue() {
+        return configValue;
     }
 }

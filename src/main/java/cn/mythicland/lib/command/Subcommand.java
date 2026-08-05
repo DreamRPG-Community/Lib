@@ -45,7 +45,7 @@ public interface Subcommand {
     /**
      * Executes the command with arguments after the command name.
      *
-     * @param sender the command sender
+     * @param sender    the command sender
      * @param arguments the arguments after the command name
      */
     void execute(CommandSender sender, List<String> arguments);
@@ -53,7 +53,7 @@ public interface Subcommand {
     /**
      * Supplies tab completions for arguments after the command name.
      *
-     * @param sender the command sender requesting completions
+     * @param sender    the command sender requesting completions
      * @param arguments the arguments after the command name
      * @return immutable or newly-created completion values
      */

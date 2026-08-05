@@ -84,13 +84,7 @@ class CommandRouterTest {
         );
     }
 
-    private static final class TestSubcommand implements Subcommand {
-
-        private final AtomicBoolean executed;
-
-        private TestSubcommand(AtomicBoolean executed) {
-            this.executed = executed;
-        }
+    private record TestSubcommand(AtomicBoolean executed) implements Subcommand {
 
         @Override
         public String name() {

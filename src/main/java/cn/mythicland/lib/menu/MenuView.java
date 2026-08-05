@@ -28,7 +28,7 @@ public interface MenuView {
     /**
      * Renders the current state into an already-created inventory.
      *
-     * @param player the viewer
+     * @param player    the viewer
      * @param inventory the inventory to populate
      */
     void render(Player player, Inventory inventory);
@@ -36,8 +36,8 @@ public interface MenuView {
     /**
      * Handles a click after the shared service has cancelled the event.
      *
-     * @param player the viewer
-     * @param event the cancelled click event
+     * @param player      the viewer
+     * @param event       the cancelled click event
      * @param menuService the service that owns this view
      */
     void handleClick(Player player, InventoryClickEvent event, MenuService menuService);

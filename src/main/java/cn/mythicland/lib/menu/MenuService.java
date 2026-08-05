@@ -13,10 +13,7 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.plugin.java.JavaPlugin;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Objects;
-import java.util.UUID;
+import java.util.*;
 
 /**
  * Shared single-view inventory lifecycle and click protection for dependent plugins.
@@ -40,7 +37,7 @@ public final class MenuService implements Listener, AutoCloseable {
      * Opens a view for a player. Calls from an asynchronous thread are moved to the primary thread.
      *
      * @param player the viewer
-     * @param view the view to open
+     * @param view   the view to open
      */
     public void open(Player player, MenuView view) {
         Objects.requireNonNull(player, "player");
@@ -132,7 +129,7 @@ public final class MenuService implements Listener, AutoCloseable {
             owner.getServer().getScheduler().runTask(owner, this::close);
             return;
         }
-        for (UUID playerUniqueId : openMenus.keySet()) {
+        for (UUID playerUniqueId : Set.copyOf(openMenus.keySet())) {
             Player player = Bukkit.getPlayer(playerUniqueId);
             if (player != null) player.closeInventory();
         }

@@ -23,11 +23,11 @@ public final class EmbeddedHttpServer implements AutoCloseable {
      * Starts an HTTP server with one catch-all context.
      *
      * @param bindAddress the address to bind
-     * @param port the TCP port
-     * @param handler the handler for every request
-     * @param executor the executor used by HTTP exchanges
+     * @param port        the TCP port
+     * @param handler     the handler for every request
+     * @param executor    the executor used by HTTP exchanges
      * @return the running server
-     * @throws IOException if binding or context creation fails
+     * @throws IOException          if binding or context creation fails
      * @throws NullPointerException if an argument is null
      */
     public static EmbeddedHttpServer start(

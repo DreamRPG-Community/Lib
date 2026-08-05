@@ -9,21 +9,20 @@ import java.util.Set;
  *
  * @param <T> the value type stored in the list
  */
-public final class ListPolicy<T> {
-
-    private final ListMode mode;
-    private final Set<T> entries;
+public record ListPolicy<T>(ListMode mode, Set<T> entries) {
 
     /**
      * Creates a list policy with a defensive immutable copy of its entries.
      *
-     * @param mode the matching mode
+     * @param mode    the matching mode
      * @param entries the values used by the mode
      * @throws NullPointerException if the mode, collection, or an entry is null
      */
     public ListPolicy(ListMode mode, Collection<? extends T> entries) {
-        this.mode = Objects.requireNonNull(mode, "mode");
-        this.entries = Set.copyOf(Objects.requireNonNull(entries, "entries"));
+        this(
+                Objects.requireNonNull(mode, "mode"),
+                Set.copyOf(Objects.requireNonNull(entries, "entries"))
+        );
     }
 
     /**
@@ -38,7 +37,7 @@ public final class ListPolicy<T> {
     public boolean blocks(T value) {
         if (mode == ListMode.DISABLED) return false;
         boolean listed = value != null && entries.contains(value);
-        return mode == ListMode.BLACKLIST ? listed : !listed;
+        return (mode == ListMode.BLACKLIST) == listed;
     }
 
     /**
@@ -56,6 +55,7 @@ public final class ListPolicy<T> {
      *
      * @return the immutable mode
      */
+    @Override
     public ListMode mode() {
         return mode;
     }
@@ -65,6 +65,7 @@ public final class ListPolicy<T> {
      *
      * @return an immutable set of configured values
      */
+    @Override
     public Set<T> entries() {
         return entries;
     }

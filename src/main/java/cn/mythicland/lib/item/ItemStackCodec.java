@@ -31,7 +31,7 @@ public final class ItemStackCodec {
      *
      * @param values the serialized item values
      * @return the decoded item stack
-     * @throws NullPointerException if {@code values} is null
+     * @throws NullPointerException     if {@code values} is null
      * @throws IllegalArgumentException if Bukkit cannot decode the values
      */
     public static ItemStack deserialize(Map<String, Object> values) {
