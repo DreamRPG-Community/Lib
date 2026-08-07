@@ -1,11 +1,24 @@
 package cn.mythicland.lib.api;
 
+import cn.mythicland.lib.bootstrap.PluginBootstrap;
 import cn.mythicland.lib.command.CommandRouter;
+import cn.mythicland.lib.container.ContainerAnimationService;
+import cn.mythicland.lib.container.PacketContainerAnimationService;
+import cn.mythicland.lib.database.DatabaseService;
+import cn.mythicland.lib.integration.PlaceholderApiBridge;
+import cn.mythicland.lib.integration.PlaceholderService;
+import cn.mythicland.lib.integration.PlayerBalanceService;
+import cn.mythicland.lib.integration.PlayerPointsBridge;
+import cn.mythicland.lib.integration.PlayerPointsService;
+import cn.mythicland.lib.integration.VaultEconomyBridge;
+import cn.mythicland.lib.library.LibraryService;
+import cn.mythicland.lib.loading.PlayerLoadingGate;
 import cn.mythicland.lib.material.EnchantmentCatalog;
 import cn.mythicland.lib.material.MaterialCatalog;
 import cn.mythicland.lib.material.MaterialIconCatalog;
 import cn.mythicland.lib.menu.MenuService;
 import cn.mythicland.lib.path.PathService;
+import cn.mythicland.lib.scoreboard.ScoreboardService;
 import cn.mythicland.lib.storage.StorageService;
 import cn.mythicland.lib.web.EmbeddedHttpServer;
 import cn.mythicland.lib.web.WebService;
@@ -19,7 +32,11 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.Objects;
 import java.util.Set;
-import java.util.concurrent.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 
@@ -33,12 +50,20 @@ public final class LibApi implements AutoCloseable {
 
     private final JavaPlugin owner;
     private final MenuService menuService;
+    private final ContainerAnimationService containerAnimationService;
+    private final PlayerLoadingGate playerLoadingGate;
+    private final LibraryService libraryService;
+    private final DatabaseService databaseService;
+    private final ScoreboardService scoreboardService;
     private final MaterialCatalog materialCatalog;
     private final MaterialIconCatalog materialIconCatalog;
     private final EnchantmentCatalog enchantmentCatalog;
     private final WebService webService;
     private final StorageService storageService;
     private final PathService pathService;
+    private final PlayerBalanceService balanceService;
+    private final PlayerPointsService playerPointsService;
+    private final PlaceholderService placeholderService;
     private final ExecutorService asyncExecutor;
     private final Set<BukkitTask> scheduledTasks = Collections.newSetFromMap(new ConcurrentHashMap<>());
     private volatile boolean closed;
@@ -52,7 +77,7 @@ public final class LibApi implements AutoCloseable {
      * @throws IllegalArgumentException if {@code poolSize} is less than one
      */
     public LibApi(JavaPlugin owner, int poolSize) {
-        this(owner, poolSize, new MenuService(owner));
+        this(owner, poolSize, new PlayerLoadingGate(owner), new MenuService(owner));
     }
 
     /**
@@ -63,9 +88,23 @@ public final class LibApi implements AutoCloseable {
      * @param menuService the shared menu service
      */
     public LibApi(JavaPlugin owner, int poolSize, MenuService menuService) {
+        this(owner, poolSize, new PlayerLoadingGate(owner), menuService);
+    }
+
+    private LibApi(
+            JavaPlugin owner,
+            int poolSize,
+            PlayerLoadingGate playerLoadingGate,
+            MenuService menuService
+    ) {
         if (poolSize < 1) throw new IllegalArgumentException("poolSize must be positive");
         this.owner = Objects.requireNonNull(owner, "owner");
         this.menuService = Objects.requireNonNull(menuService, "menuService");
+        this.containerAnimationService = new PacketContainerAnimationService(owner);
+        this.playerLoadingGate = Objects.requireNonNull(playerLoadingGate, "playerLoadingGate");
+        this.libraryService = new LibraryService();
+        this.databaseService = new DatabaseService();
+        this.scoreboardService = new ScoreboardService();
         this.materialCatalog = MaterialCatalog.bundled();
         this.materialIconCatalog = new MaterialIconCatalog();
         this.enchantmentCatalog = EnchantmentCatalog.runtime();
@@ -73,6 +112,9 @@ public final class LibApi implements AutoCloseable {
         this.webService = new WebService(asyncExecutor);
         this.storageService = new StorageService();
         this.pathService = new PathService();
+        this.balanceService = new VaultEconomyBridge(owner);
+        this.playerPointsService = new PlayerPointsBridge(owner);
+        this.placeholderService = new PlaceholderApiBridge(owner);
     }
 
     /**
@@ -210,6 +252,33 @@ public final class LibApi implements AutoCloseable {
     }
 
     /**
+     * Schedules a primary-thread repeating action owned by Lib.
+     *
+     * @param delayTicks  initial delay in server ticks
+     * @param periodTicks repeat period in server ticks
+     * @param action      the action to execute
+     * @return the scheduled Bukkit task
+     * @throws IllegalArgumentException if the delay is negative or the period is less than one
+     * @throws IllegalStateException    if this service has been closed
+     * @throws NullPointerException     if {@code action} is null
+     */
+    @SuppressWarnings("UnusedReturnValue")
+    public BukkitTask runTimer(long delayTicks, long periodTicks, Runnable action) {
+        if (delayTicks < 0L) throw new IllegalArgumentException("delayTicks cannot be negative");
+        if (periodTicks < 1L) throw new IllegalArgumentException("periodTicks must be positive");
+        if (closed) throw new IllegalStateException("Lib API is closed");
+
+        BukkitTask task = owner.getServer().getScheduler().runTaskTimer(
+                owner,
+                action,
+                delayTicks,
+                periodTicks
+        );
+        scheduledTasks.add(task);
+        return task;
+    }
+
+    /**
      * Creates a shared command router for a plugin command.
      *
      * @param commandOwner the plugin whose logger handles command failures
@@ -219,6 +288,45 @@ public final class LibApi implements AutoCloseable {
      */
     public CommandRouter createCommandRouter(JavaPlugin commandOwner, String rootCommand) {
         return new CommandRouter(commandOwner, rootCommand);
+    }
+
+    /**
+     * Creates a package-scoped annotation bootstrap for a dependent plugin.
+     *
+     * @param plugin      plugin being bootstrapped
+     * @param basePackage package containing the plugin's Lib components
+     * @return an unopened plugin bootstrap
+     */
+    public PluginBootstrap createPluginBootstrap(JavaPlugin plugin, String basePackage) {
+        if (closed) throw new IllegalStateException("Lib API is closed");
+        return new PluginBootstrap(plugin, this, basePackage);
+    }
+
+    /**
+     * Returns the shared runtime library loader.
+     *
+     * @return runtime library service
+     */
+    public LibraryService libraryService() {
+        return libraryService;
+    }
+
+    /**
+     * Returns the shared JDBC database factory.
+     *
+     * @return database service
+     */
+    public DatabaseService databaseService() {
+        return databaseService;
+    }
+
+    /**
+     * Returns the shared scoreboard session lifecycle.
+     *
+     * @return scoreboard service
+     */
+    public ScoreboardService scoreboardService() {
+        return scoreboardService;
     }
 
     /**
@@ -276,12 +384,57 @@ public final class LibApi implements AutoCloseable {
     }
 
     /**
+     * Returns the reflective Vault economy bridge.
+     *
+     * @return optional player balance service
+     */
+    public PlayerBalanceService balanceService() {
+        return balanceService;
+    }
+
+    /**
+     * Returns the reflective PlayerPoints bridge.
+     *
+     * @return optional player points service
+     */
+    public PlayerPointsService playerPointsService() {
+        return playerPointsService;
+    }
+
+    /**
+     * Returns the reflective PlaceholderAPI bridge.
+     *
+     * @return optional placeholder service
+     */
+    public PlaceholderService placeholderService() {
+        return placeholderService;
+    }
+
+    /**
      * Returns the shared menu lifecycle service.
      *
      * @return the menu service owned by Lib
      */
     public MenuService menuService() {
         return menuService;
+    }
+
+    /**
+     * Returns the generic client-side container animation service.
+     *
+     * @return container animation service
+     */
+    public ContainerAnimationService containerAnimationService() {
+        return containerAnimationService;
+    }
+
+    /**
+     * Returns the shared player loading restriction service.
+     *
+     * @return loading gate
+     */
+    public PlayerLoadingGate playerLoadingGate() {
+        return playerLoadingGate;
     }
 
     /**
@@ -317,8 +470,11 @@ public final class LibApi implements AutoCloseable {
 
         scheduledTasks.forEach(BukkitTask::cancel);
         scheduledTasks.clear();
+        scoreboardService.close();
+        playerLoadingGate.close();
         asyncExecutor.shutdownNow();
         menuService.close();
+        containerAnimationService.close();
     }
 
     private <T> CompletableFuture<T> scheduleOnMain(Supplier<T> supplier) {

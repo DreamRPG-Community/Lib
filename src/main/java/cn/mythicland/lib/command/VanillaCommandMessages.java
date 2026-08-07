@@ -38,12 +38,15 @@ public final class VanillaCommandMessages {
     }
 
     /**
-     * Formats a usage line as a red prompt.
+     * Formats every line of a usage block as a red prompt.
      *
-     * @param usage the command usage without the localized usage prefix
-     * @return the colored usage prompt
+     * @param usage the command usage block without localized usage prefixes
+     * @return the colored usage block
      */
     public static String usage(String usage) {
-        return red("用法: " + usage);
+        return usage.lines()
+                .map(line -> red("用法: " + line))
+                .reduce((first, second) -> first + "\n" + second)
+                .orElseGet(() -> red("用法: "));
     }
 }

@@ -76,7 +76,8 @@ public final class MenuService implements Listener, AutoCloseable {
             owner.getServer().getScheduler().runTask(owner, () -> close(player));
             return;
         }
-        openMenus.remove(player.getUniqueId());
+        MenuHolder holder = openMenus.remove(player.getUniqueId());
+        if (holder != null) notifyClose(player, holder);
         player.closeInventory();
     }
 
@@ -95,6 +96,7 @@ public final class MenuService implements Listener, AutoCloseable {
         if (!(event.getWhoClicked() instanceof Player player)) return;
         MenuHolder holder = holder(event.getView().getTopInventory());
         if (holder == null || !holder.viewerUniqueId.equals(player.getUniqueId())) return;
+        if (event.isCancelled()) return;
         event.setCancelled(true);
         if (event.getRawSlot() < 0) return;
         holder.view.handleClick(player, event, this);
@@ -103,8 +105,12 @@ public final class MenuService implements Listener, AutoCloseable {
     @EventHandler(priority = EventPriority.HIGHEST)
     public void handleDrag(InventoryDragEvent event) {
         if (!(event.getWhoClicked() instanceof Player player)) return;
-        if (holder(event.getView().getTopInventory()) == null) return;
+        MenuHolder holder = holder(event.getView().getTopInventory());
+        if (holder == null || event.isCancelled()) return;
         event.setCancelled(true);
+        if (holder.view instanceof StatefulMenuView statefulView) {
+            statefulView.handleDrag(player, event, this);
+        }
     }
 
     @EventHandler(priority = EventPriority.MONITOR)
@@ -112,12 +118,15 @@ public final class MenuService implements Listener, AutoCloseable {
         if (!(event.getPlayer() instanceof Player player)) return;
         MenuHolder holder = holder(event.getInventory());
         if (holder == null) return;
-        openMenus.remove(player.getUniqueId(), holder);
+        if (openMenus.remove(player.getUniqueId(), holder)) notifyClose(player, holder);
     }
 
     @EventHandler(priority = EventPriority.MONITOR)
     public void handleQuit(PlayerQuitEvent event) {
-        openMenus.remove(event.getPlayer().getUniqueId());
+        MenuHolder holder = openMenus.remove(event.getPlayer().getUniqueId());
+        if (holder != null && holder.view instanceof StatefulMenuView statefulView) {
+            statefulView.onQuit(event.getPlayer(), holder.inventory);
+        }
     }
 
     /**
@@ -137,8 +146,7 @@ public final class MenuService implements Listener, AutoCloseable {
     }
 
     private void openNow(Player player, MenuView view) {
-        MenuHolder previous = openMenus.remove(player.getUniqueId());
-        if (previous != null) player.closeInventory();
+        close(player);
 
         int size = view.size(player);
         if (size < 9 || size > 54 || size % 9 != 0) {
@@ -168,6 +176,12 @@ public final class MenuService implements Listener, AutoCloseable {
         if (inventory == null) return null;
         InventoryHolder holder = inventory.getHolder();
         return holder instanceof MenuHolder menuHolder ? menuHolder : null;
+    }
+
+    private void notifyClose(Player player, MenuHolder holder) {
+        if (holder.view instanceof StatefulMenuView statefulView) {
+            statefulView.onClose(player, holder.inventory);
+        }
     }
 
     private static final class MenuHolder implements InventoryHolder {

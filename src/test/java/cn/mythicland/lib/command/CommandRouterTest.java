@@ -34,6 +34,20 @@ class CommandRouterTest {
     }
 
     @Test
+    void multilineUsagePrefixesEveryCommandLine() {
+        String usage = VanillaCommandMessages.usage("/worldregion landmark set <id> <显示名>\n"
+                + "/worldregion landmark delete <id>\n"
+                + "/worldregion landmark list");
+
+        assertEquals(
+                ChatColor.RED + "用法: /worldregion landmark set <id> <显示名>\n"
+                        + ChatColor.RED + "用法: /worldregion landmark delete <id>\n"
+                        + ChatColor.RED + "用法: /worldregion landmark list",
+                usage
+        );
+    }
+
+    @Test
     void explicitHelpListsCommandsWithoutRootPlaceholder() {
         List<String> messages = new ArrayList<>();
         CommandRouter router = new CommandRouter(
