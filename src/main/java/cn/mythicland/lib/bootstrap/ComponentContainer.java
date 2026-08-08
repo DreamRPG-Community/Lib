@@ -9,6 +9,7 @@ import cn.mythicland.lib.bootstrap.annotation.ServiceComponent;
 import cn.mythicland.lib.container.ContainerAnimationService;
 import cn.mythicland.lib.loading.PlayerLoadingGate;
 import cn.mythicland.lib.menu.MenuService;
+import cn.mythicland.lib.text.FloatingTextService;
 import org.bukkit.Server;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitScheduler;
@@ -147,6 +148,7 @@ public final class ComponentContainer {
         singletons.put(Logger.class, plugin.getLogger());
         singletons.put(LibApi.class, lib);
         singletons.put(ContainerAnimationService.class, lib.containerAnimationService());
+        singletons.put(FloatingTextService.class, lib.floatingTextService());
         singletons.put(MenuService.class, lib.menuService());
         singletons.put(PlayerLoadingGate.class, lib.playerLoadingGate());
         singletons.put(ComponentContainer.class, this);

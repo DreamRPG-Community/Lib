@@ -38,6 +38,16 @@ public final class VanillaCommandMessages {
     }
 
     /**
+     * Formats a message with the default white chat color.
+     *
+     * @param message message body
+     * @return the colored message
+     */
+    public static String white(String message) {
+        return ChatColor.WHITE + message;
+    }
+
+    /**
      * Formats every line of a usage block as a red prompt.
      *
      * @param usage the command usage block without localized usage prefixes

@@ -11,6 +11,7 @@ import java.sql.DriverManager;
 import java.sql.DriverPropertyInfo;
 import java.sql.SQLException;
 import java.sql.SQLFeatureNotSupportedException;
+import java.sql.Statement;
 import java.util.Objects;
 import java.util.Properties;
 import java.util.logging.Logger;
@@ -20,9 +21,12 @@ import java.util.logging.Logger;
  */
 public final class SqliteDatabase implements SqlDatabase {
 
+    private static final int BUSY_TIMEOUT_MILLISECONDS = 5_000;
+
     private final Path databaseFile;
     private final String jdbcUrl;
     private final DriverRegistration registration;
+    private final Object transactionMonitor = new Object();
     private boolean closed;
 
     private SqliteDatabase(
@@ -137,7 +141,17 @@ public final class SqliteDatabase implements SqlDatabase {
         Objects.requireNonNull(work, "work");
         if (closed) throw new IllegalStateException("SQLite database is closed: " + databaseFile);
 
+        if (transactional) {
+            synchronized (transactionMonitor) {
+                return executeWithConnection(work, true);
+            }
+        }
+        return executeWithConnection(work, false);
+    }
+
+    private <T> T executeWithConnection(SqlWork<T> work, boolean transactional) throws SQLException {
         try (Connection connection = DriverManager.getConnection(jdbcUrl)) {
+            configureConnection(connection);
             connection.setAutoCommit(!transactional);
             if (transactional) {
                 try {
@@ -150,6 +164,12 @@ public final class SqliteDatabase implements SqlDatabase {
                 }
             }
             return work.execute(connection);
+        }
+    }
+
+    private static void configureConnection(Connection connection) throws SQLException {
+        try (Statement statement = connection.createStatement()) {
+            statement.execute("PRAGMA busy_timeout = " + BUSY_TIMEOUT_MILLISECONDS);
         }
     }
 

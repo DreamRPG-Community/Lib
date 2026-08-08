@@ -7,11 +7,14 @@ import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.Map;
 import java.util.Objects;
+import java.util.regex.Pattern;
 
 /**
  * Renders literal native placeholders, optional PlaceholderAPI placeholders, and legacy colors.
  */
 public final class TemplateRenderer {
+
+    private static final Pattern PLACEHOLDER_API_TOKEN = Pattern.compile("%[A-Za-z0-9_:-]+%");
 
     private final PlaceholderService placeholderService;
 
@@ -64,6 +67,16 @@ public final class TemplateRenderer {
      */
     public boolean isPlaceholderApiAvailable() {
         return placeholderService.isAvailable();
+    }
+
+    /**
+     * Returns whether text contains a conventional PlaceholderAPI token.
+     *
+     * @param text text to inspect
+     * @return true when a percent-delimited token is present
+     */
+    public static boolean containsPlaceholderApiToken(String text) {
+        return PLACEHOLDER_API_TOKEN.matcher(Objects.requireNonNull(text, "text")).find();
     }
 
     private static String replaceNative(String template, Map<String, ?> nativeValues) {

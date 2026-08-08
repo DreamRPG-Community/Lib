@@ -38,9 +38,20 @@ tasks.withType(Jar).configureEach {
 }
 
 def paperApiVersion = "1.12.2-R0.1-20190714.184133-413"
+def decentHologramsVersion = "2.10.1"
+def decentHologramsJar = file("libs/DecentHolograms-${decentHologramsVersion}.jar")
+
+if (!decentHologramsJar.isFile()) {
+    throw new GradleException("Missing compile-only dependency: ${decentHologramsJar}")
+}
 
 dependencies {
     compileOnly("com.destroystokyo.paper:paper-api:${paperApiVersion}")
+    // Use the exact user-provided runtime JAR. The published 2.10.1 metadata
+    // also resolves modern NMS modules that require a newer JVM than this
+    // Paper 1.12.2 / Java 21 target.
+    compileOnly(files(decentHologramsJar))
+    compileOnly("org.jetbrains:annotations:24.0.1")
 
     testImplementation("org.junit.jupiter:junit-jupiter-api:5.10.2")
     testImplementation("com.destroystokyo.paper:paper-api:${paperApiVersion}")

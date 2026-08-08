@@ -218,21 +218,44 @@ public final class ScoreboardSession implements AutoCloseable {
             String prefix,
             Collection<String> entries
     ) {
+        replaceTeam(teamName, prefix, "", entries);
+    }
+
+    /**
+     * Replaces one team, its prefix, suffix, and entries.
+     *
+     * @param teamName team name, at most sixteen characters
+     * @param prefix   team prefix, at most sixteen translated characters
+     * @param suffix   team suffix, at most sixteen translated characters
+     * @param entries  scoreboard entries that should belong to the team
+     */
+    public void replaceTeam(
+            String teamName,
+            String prefix,
+            String suffix,
+            Collection<String> entries
+    ) {
         ensureOpen();
         Objects.requireNonNull(teamName, "teamName");
         Objects.requireNonNull(prefix, "prefix");
+        Objects.requireNonNull(suffix, "suffix");
         Objects.requireNonNull(entries, "entries");
         for (String entry : entries) Objects.requireNonNull(entry, "entries contains null");
         String translatedPrefix = LegacyText.colorize(prefix);
+        String translatedSuffix = LegacyText.colorize(suffix);
         if (teamName.isBlank() || teamName.length() > 16) {
             throw new IllegalArgumentException("Scoreboard teamName must contain 1 to 16 characters");
         }
         if (translatedPrefix.length() > 16) {
             throw new IllegalArgumentException("Scoreboard team prefix cannot exceed 16 characters");
         }
+        if (translatedSuffix.length() > 16) {
+            throw new IllegalArgumentException("Scoreboard team suffix cannot exceed 16 characters");
+        }
 
         Team team = teams.computeIfAbsent(teamName, scoreboard::registerNewTeam);
         if (!translatedPrefix.equals(team.getPrefix())) team.setPrefix(translatedPrefix);
+        if (!translatedSuffix.equals(team.getSuffix())) team.setSuffix(translatedSuffix);
         Set<String> desiredEntries = new HashSet<>(entries);
         for (String currentEntry : new HashSet<>(team.getEntries())) {
             if (!desiredEntries.contains(currentEntry)) team.removeEntry(currentEntry);
@@ -256,6 +279,21 @@ public final class ScoreboardSession implements AutoCloseable {
         for (String teamName : new HashSet<>(teams.keySet())) {
             if (!retained.contains(teamName)) removeTeam(teamName);
         }
+    }
+
+    /**
+     * Changes one owned team's vanilla name-tag visibility.
+     *
+     * @param teamName  owned team name
+     * @param visibility desired visibility status
+     */
+    public void setTeamNameTagVisibility(String teamName, Team.OptionStatus visibility) {
+        ensureOpen();
+        Objects.requireNonNull(teamName, "teamName");
+        Team.OptionStatus desired = Objects.requireNonNull(visibility, "visibility");
+        Team team = teams.get(teamName);
+        if (team == null) throw new IllegalArgumentException("Unknown scoreboard team: " + teamName);
+        team.setOption(Team.Option.NAME_TAG_VISIBILITY, desired);
     }
 
     /**

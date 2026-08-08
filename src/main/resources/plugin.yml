@@ -3,4 +3,5 @@ version: ${version}
 main: cn.mythicland.lib.LibPlugin
 author: ShanguanLinG
 load: STARTUP
+depend: [ DecentHolograms ]
 description: Shared runtime library for self-written RPG plugins.

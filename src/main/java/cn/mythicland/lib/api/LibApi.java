@@ -20,6 +20,8 @@ import cn.mythicland.lib.menu.MenuService;
 import cn.mythicland.lib.path.PathService;
 import cn.mythicland.lib.scoreboard.ScoreboardService;
 import cn.mythicland.lib.storage.StorageService;
+import cn.mythicland.lib.text.DecentFloatingTextService;
+import cn.mythicland.lib.text.FloatingTextService;
 import cn.mythicland.lib.web.EmbeddedHttpServer;
 import cn.mythicland.lib.web.WebService;
 import com.sun.net.httpserver.HttpHandler;
@@ -51,6 +53,7 @@ public final class LibApi implements AutoCloseable {
     private final JavaPlugin owner;
     private final MenuService menuService;
     private final ContainerAnimationService containerAnimationService;
+    private final FloatingTextService floatingTextService;
     private final PlayerLoadingGate playerLoadingGate;
     private final LibraryService libraryService;
     private final DatabaseService databaseService;
@@ -101,6 +104,7 @@ public final class LibApi implements AutoCloseable {
         this.owner = Objects.requireNonNull(owner, "owner");
         this.menuService = Objects.requireNonNull(menuService, "menuService");
         this.containerAnimationService = new PacketContainerAnimationService(owner);
+        this.floatingTextService = new DecentFloatingTextService(owner);
         this.playerLoadingGate = Objects.requireNonNull(playerLoadingGate, "playerLoadingGate");
         this.libraryService = new LibraryService();
         this.databaseService = new DatabaseService();
@@ -429,6 +433,15 @@ public final class LibApi implements AutoCloseable {
     }
 
     /**
+     * Returns the shared DecentHolograms-backed floating-text service.
+     *
+     * @return floating-text service
+     */
+    public FloatingTextService floatingTextService() {
+        return floatingTextService;
+    }
+
+    /**
      * Returns the shared player loading restriction service.
      *
      * @return loading gate
@@ -475,6 +488,7 @@ public final class LibApi implements AutoCloseable {
         asyncExecutor.shutdownNow();
         menuService.close();
         containerAnimationService.close();
+        floatingTextService.close();
     }
 
     private <T> CompletableFuture<T> scheduleOnMain(Supplier<T> supplier) {
