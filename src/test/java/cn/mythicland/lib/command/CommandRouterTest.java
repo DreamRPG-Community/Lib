@@ -13,8 +13,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.logging.Logger;
 import java.util.function.Predicate;
+import java.util.logging.Logger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -159,40 +159,28 @@ class CommandRouterTest {
     }
 
     @CommandComponent("edit")
-    private static final class RootCommand {
-
-        private final AtomicBoolean executed;
-
-        private RootCommand(AtomicBoolean executed) {
-            this.executed = executed;
-        }
+        private record RootCommand(AtomicBoolean executed) {
 
         @CommandHandler
-        private void execute(CommandContext context) {
-            context.requireArguments(0);
-            executed.set(true);
+            private void execute(CommandContext context) {
+                context.requireArguments(0);
+                executed.set(true);
+            }
         }
-    }
 
     @CommandComponent("gm")
-    private static final class RootArgumentCommand {
-
-        private final AtomicReference<List<String>> received;
-
-        private RootArgumentCommand(AtomicReference<List<String>> received) {
-            this.received = received;
-        }
+        private record RootArgumentCommand(AtomicReference<List<String>> received) {
 
         @CommandHandler
-        private void execute(CommandContext context) {
-            received.set(context.arguments());
-        }
+            private void execute(CommandContext context) {
+                received.set(context.arguments());
+            }
 
-        @CommandCompleter
-        private List<String> complete(CommandContext context) {
-            return List.of("0", "1", "2", "3");
+            @CommandCompleter
+            private List<String> complete(CommandContext context) {
+                return List.of("0", "1", "2", "3");
+            }
         }
-    }
 
     @CommandComponent("example")
     private static final class AnnotatedCommand {
@@ -209,25 +197,19 @@ class CommandRouterTest {
     }
 
     @CommandComponent("nested")
-    private static final class NestedCommand {
-
-        private final List<String> received;
-
-        private NestedCommand(List<String> received) {
-            this.received = received;
-        }
+        private record NestedCommand(List<String> received) {
 
         @CommandHandler(value = "cmd add", permission = "nested.add")
-        private void add(CommandContext context) {
-            context.requireAtLeast(3);
-            received.addAll(context.arguments());
-        }
+            private void add(CommandContext context) {
+                context.requireAtLeast(3);
+                received.addAll(context.arguments());
+            }
 
-        @CommandCompleter("cmd add")
-        private List<String> complete(CommandContext context) {
-            return List.of("player", "console");
+            @CommandCompleter("cmd add")
+            private List<String> complete(CommandContext context) {
+                return List.of("player", "console");
+            }
         }
-    }
 
     @CommandComponent("dynamic")
     private static final class DynamicPermissionCommand {

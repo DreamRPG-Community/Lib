@@ -2,9 +2,13 @@ package cn.mythicland.lib.bootstrap;
 
 import cn.mythicland.lib.api.LibApi;
 import cn.mythicland.lib.bootstrap.annotation.CommandComponent;
+import cn.mythicland.lib.bootstrap.annotation.ConfigComponent;
 import cn.mythicland.lib.bootstrap.annotation.ListenerComponent;
 import cn.mythicland.lib.bootstrap.annotation.ServiceComponent;
 import cn.mythicland.lib.command.CommandRouter;
+import cn.mythicland.lib.config.ConfigSupport;
+import cn.mythicland.lib.config.ConfigView;
+import cn.mythicland.lib.config.ConfigurableComponent;
 import org.bukkit.Bukkit;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.event.HandlerList;
@@ -23,6 +27,7 @@ public final class PluginBootstrap implements AutoCloseable {
     private final JavaPlugin plugin;
     private final ComponentContainer components;
     private final List<LibPluginLifecycle> lifecycles = new ArrayList<>();
+    private final List<ConfigurableComponent> configurations = new ArrayList<>();
     private final List<RegisteredService> services = new ArrayList<>();
     private final List<GlobalCommandTakeover> commandTakeovers = new ArrayList<>();
     private PluginTaskScope taskScope;
@@ -54,6 +59,9 @@ public final class PluginBootstrap implements AutoCloseable {
         if (enabled) throw new IllegalStateException("Plugin bootstrap is already enabled");
         taskScope = components.resolve(PluginTaskScope.class);
         try {
+            configurations.addAll(prepareConfigurations());
+            ConfigView configuration = ConfigSupport.loadDefaultView(plugin);
+            for (ConfigurableComponent component : configurations) component.reload(configuration);
             List<PendingService> pendingServices = prepareServices();
             lifecycles.addAll(components.resolveAllOrdered(LibPluginLifecycle.class));
             for (LibPluginLifecycle lifecycle : lifecycles) lifecycle.enable();
@@ -77,6 +85,8 @@ public final class PluginBootstrap implements AutoCloseable {
      */
     public void reload() {
         if (!enabled) throw new IllegalStateException("Plugin bootstrap is not enabled");
+        ConfigView configuration = ConfigSupport.reloadView(plugin);
+        for (ConfigurableComponent component : configurations) component.reload(configuration);
         for (LibPluginLifecycle lifecycle : lifecycles) lifecycle.reload();
     }
 
@@ -132,6 +142,20 @@ public final class PluginBootstrap implements AutoCloseable {
             pending.add(new PendingService(contract, provider, annotation.priority()));
         }
         return List.copyOf(pending);
+    }
+
+    private List<ConfigurableComponent> prepareConfigurations() {
+        List<ConfigurableComponent> result = new ArrayList<>();
+        for (Class<?> componentType : components.annotatedTypes(ConfigComponent.class)) {
+            Object component = components.resolve(componentType);
+            if (!(component instanceof ConfigurableComponent configurable)) {
+                throw new IllegalStateException(
+                        "Config component must implement ConfigurableComponent: " + componentType.getName()
+                );
+            }
+            result.add(configurable);
+        }
+        return List.copyOf(result);
     }
 
     private void registerServices(List<PendingService> pendingServices) {
@@ -210,6 +234,7 @@ public final class PluginBootstrap implements AutoCloseable {
             }
         }
         lifecycles.clear();
+        configurations.clear();
         enabled = false;
         components.clear();
     }

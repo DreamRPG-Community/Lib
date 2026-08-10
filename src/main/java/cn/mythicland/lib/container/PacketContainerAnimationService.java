@@ -236,82 +236,82 @@ public final class PacketContainerAnimationService implements ContainerAnimation
                              Method craftPlayerGetHandle, Field playerConnectionField, Method sendPacket) {
 
         private static NmsBridge create() {
-                try {
-                    String craftVersion = Bukkit.getServer().getClass().getPackage().getName();
-                    String version = craftVersion.substring(craftVersion.lastIndexOf('.') + 1);
-                    String nmsPackage = "net.minecraft.server." + version;
-                    Class<?> craftWorldType = Class.forName(craftVersion + ".CraftWorld");
-                    Class<?> craftPlayerType = Class.forName(craftVersion + ".entity.CraftPlayer");
-                    Class<?> blockPositionType = Class.forName(nmsPackage + ".BlockPosition");
-                    Class<?> blockType = Class.forName(nmsPackage + ".Block");
-                    Class<?> packetType = Class.forName(nmsPackage + ".Packet");
-                    Class<?> blockActionPacketType = Class.forName(nmsPackage + ".PacketPlayOutBlockAction");
-                    Method craftWorldGetHandle = craftWorldType.getMethod("getHandle");
-                    Class<?> worldServerType = craftWorldGetHandle.getReturnType();
-                    Method worldGetType = worldServerType.getMethod("getType", blockPositionType);
-                    Method blockDataGetBlock = worldGetType.getReturnType().getMethod("getBlock");
-                    Constructor<?> blockPositionConstructor = blockPositionType.getConstructor(
-                            int.class,
-                            int.class,
-                            int.class
-                    );
-                    Constructor<?> packetConstructor = blockActionPacketType.getConstructor(
-                            blockPositionType,
-                            blockType,
-                            int.class,
-                            int.class
-                    );
-                    Method craftPlayerGetHandle = craftPlayerType.getMethod("getHandle");
-                    Field playerConnectionField = craftPlayerGetHandle.getReturnType().getField("playerConnection");
-                    Method sendPacket = playerConnectionField.getType().getMethod("sendPacket", packetType);
-                    return new NmsBridge(
-                            craftWorldGetHandle,
-                            worldGetType,
-                            blockDataGetBlock,
-                            blockPositionConstructor,
-                            packetConstructor,
-                            craftPlayerGetHandle,
-                            playerConnectionField,
-                            sendPacket
-                    );
-                } catch (ReflectiveOperationException | RuntimeException exception) {
-                    throw new IllegalStateException(
-                            "Paper 1.12.2 NMS container animation bridge is unavailable",
-                            exception
-                    );
-                }
-            }
-
-            private Object createPacket(Block block, int action, int viewerCount) {
-                try {
-                    Object worldServer = craftWorldGetHandle.invoke(block.getWorld());
-                    Object position = blockPositionConstructor.newInstance(
-                            block.getX(),
-                            block.getY(),
-                            block.getZ()
-                    );
-                    Object blockData = worldGetType.invoke(worldServer, position);
-                    Object nmsBlock = blockDataGetBlock.invoke(blockData);
-                    return packetConstructor.newInstance(position, nmsBlock, action, viewerCount);
-                } catch (IllegalAccessException | InvocationTargetException | InstantiationException exception) {
-                    throw new IllegalStateException(
-                            "Failed to construct the NMS container animation packet",
-                            exception
-                    );
-                }
-            }
-
-            private void sendPacket(Player player, Object packet) {
-                try {
-                    Object handle = craftPlayerGetHandle.invoke(player);
-                    Object connection = playerConnectionField.get(handle);
-                    sendPacket.invoke(connection, packet);
-                } catch (IllegalAccessException | InvocationTargetException exception) {
-                    throw new IllegalStateException(
-                            "Failed to send the NMS container animation packet to " + player.getName(),
-                            exception
-                    );
-                }
+            try {
+                String craftVersion = Bukkit.getServer().getClass().getPackage().getName();
+                String version = craftVersion.substring(craftVersion.lastIndexOf('.') + 1);
+                String nmsPackage = "net.minecraft.server." + version;
+                Class<?> craftWorldType = Class.forName(craftVersion + ".CraftWorld");
+                Class<?> craftPlayerType = Class.forName(craftVersion + ".entity.CraftPlayer");
+                Class<?> blockPositionType = Class.forName(nmsPackage + ".BlockPosition");
+                Class<?> blockType = Class.forName(nmsPackage + ".Block");
+                Class<?> packetType = Class.forName(nmsPackage + ".Packet");
+                Class<?> blockActionPacketType = Class.forName(nmsPackage + ".PacketPlayOutBlockAction");
+                Method craftWorldGetHandle = craftWorldType.getMethod("getHandle");
+                Class<?> worldServerType = craftWorldGetHandle.getReturnType();
+                Method worldGetType = worldServerType.getMethod("getType", blockPositionType);
+                Method blockDataGetBlock = worldGetType.getReturnType().getMethod("getBlock");
+                Constructor<?> blockPositionConstructor = blockPositionType.getConstructor(
+                        int.class,
+                        int.class,
+                        int.class
+                );
+                Constructor<?> packetConstructor = blockActionPacketType.getConstructor(
+                        blockPositionType,
+                        blockType,
+                        int.class,
+                        int.class
+                );
+                Method craftPlayerGetHandle = craftPlayerType.getMethod("getHandle");
+                Field playerConnectionField = craftPlayerGetHandle.getReturnType().getField("playerConnection");
+                Method sendPacket = playerConnectionField.getType().getMethod("sendPacket", packetType);
+                return new NmsBridge(
+                        craftWorldGetHandle,
+                        worldGetType,
+                        blockDataGetBlock,
+                        blockPositionConstructor,
+                        packetConstructor,
+                        craftPlayerGetHandle,
+                        playerConnectionField,
+                        sendPacket
+                );
+            } catch (ReflectiveOperationException | RuntimeException exception) {
+                throw new IllegalStateException(
+                        "Paper 1.12.2 NMS container animation bridge is unavailable",
+                        exception
+                );
             }
         }
+
+        private Object createPacket(Block block, int action, int viewerCount) {
+            try {
+                Object worldServer = craftWorldGetHandle.invoke(block.getWorld());
+                Object position = blockPositionConstructor.newInstance(
+                        block.getX(),
+                        block.getY(),
+                        block.getZ()
+                );
+                Object blockData = worldGetType.invoke(worldServer, position);
+                Object nmsBlock = blockDataGetBlock.invoke(blockData);
+                return packetConstructor.newInstance(position, nmsBlock, action, viewerCount);
+            } catch (IllegalAccessException | InvocationTargetException | InstantiationException exception) {
+                throw new IllegalStateException(
+                        "Failed to construct the NMS container animation packet",
+                        exception
+                );
+            }
+        }
+
+        private void sendPacket(Player player, Object packet) {
+            try {
+                Object handle = craftPlayerGetHandle.invoke(player);
+                Object connection = playerConnectionField.get(handle);
+                sendPacket.invoke(connection, packet);
+            } catch (IllegalAccessException | InvocationTargetException exception) {
+                throw new IllegalStateException(
+                        "Failed to send the NMS container animation packet to " + player.getName(),
+                        exception
+                );
+            }
+        }
+    }
 }

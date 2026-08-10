@@ -171,7 +171,7 @@ public final class DecentFloatingTextService implements FloatingTextService, Lis
                 hologram = created;
                 page = created.getPage(0);
                 configureHologram(specification);
-                replaceLines(specification.lines(), specification.lineSpacing());
+                replaceLines(specification.lines(), specification.lineSpacings());
                 created.setDefaultVisibleState(false);
             } catch (RuntimeException exception) {
                 created.delete();
@@ -187,14 +187,14 @@ public final class DecentFloatingTextService implements FloatingTextService, Lis
             if (closed) return;
             FloatingTextSpec next = Objects.requireNonNull(specification, "specification");
             boolean lineCountChanged = lines.size() != next.lines().size();
-            boolean spacingChanged = Double.compare(this.specification.lineSpacing(), next.lineSpacing()) != 0;
+            boolean spacingChanged = !this.specification.lineSpacings().equals(next.lineSpacings());
             if (lineCountChanged) hideVisibleViewers();
             this.specification = next;
             configureHologram(next);
             if (lineCountChanged) {
-                replaceLines(next.lines(), next.lineSpacing());
+                replaceLines(next.lines(), next.lineSpacings());
             } else {
-                if (spacingChanged) moveLines(next.lineSpacing());
+                if (spacingChanged) moveLines(next.lineSpacings());
                 for (int index = 0; index < lines.size(); index++) {
                     String nextText = next.lines().get(index);
                     if (!nextText.equals(lines.get(index).getContent())) {
@@ -217,7 +217,7 @@ public final class DecentFloatingTextService implements FloatingTextService, Lis
             }
             anchor = next;
             hologram.setLocation(next);
-            moveLines(specification.lineSpacing());
+            moveLines(specification.lineSpacings());
             refreshViewers();
         }
 
@@ -235,7 +235,7 @@ public final class DecentFloatingTextService implements FloatingTextService, Lis
             hologram.setUpdateInterval(Integer.MAX_VALUE);
         }
 
-        private void replaceLines(List<String> textLines, double lineSpacing) {
+        private void replaceLines(List<String> textLines, List<Double> lineSpacings) {
             for (int index = page.size() - 1; index >= 0; index--) page.removeLine(index);
             List<HologramLine> replacement = new ArrayList<>(textLines.size());
             for (String text : textLines) {
@@ -244,21 +244,25 @@ public final class DecentFloatingTextService implements FloatingTextService, Lis
                 replacement.add(line);
             }
             for (int index = 0; index < replacement.size(); index++) {
-                replacement.get(index).setLocation(lineLocation(index, lineSpacing));
+                replacement.get(index).setLocation(lineLocation(index, lineSpacings));
             }
             lines = List.copyOf(replacement);
         }
 
-        private void moveLines(double lineSpacing) {
+        private void moveLines(List<Double> lineSpacings) {
             for (int index = 0; index < lines.size(); index++) {
                 HologramLine line = lines.get(index);
-                line.setLocation(lineLocation(index, lineSpacing));
+                line.setLocation(lineLocation(index, lineSpacings));
                 line.updateLocation(true);
             }
         }
 
-        private Location lineLocation(int index, double lineSpacing) {
-            return anchor.clone().subtract(0.0D, index * lineSpacing, 0.0D);
+        private Location lineLocation(int index, List<Double> lineSpacings) {
+            double offset = 0.0D;
+            for (int spacingIndex = 1; spacingIndex <= index; spacingIndex++) {
+                offset += lineSpacings.get(spacingIndex);
+            }
+            return anchor.clone().subtract(0.0D, offset, 0.0D);
         }
 
         private void refreshViewers() {

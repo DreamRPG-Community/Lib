@@ -20,6 +20,18 @@ class FloatingTextSpecTest {
         source.set(0, "&cchanged");
 
         assertEquals(List.of("&7timer", "&aavailable"), specification.lines());
+        assertEquals(List.of(0.0D, 0.25D), specification.lineSpacings());
+    }
+
+    @Test
+    void preservesIndependentLineSpacings() {
+        FloatingTextSpec specification = new FloatingTextSpec(
+                List.of("top", "middle", "bottom"),
+                List.of(0.0D, 0.4D, 0.6D),
+                32.0D
+        );
+
+        assertEquals(List.of(0.0D, 0.4D, 0.6D), specification.lineSpacings());
     }
 
     @Test
@@ -31,6 +43,14 @@ class FloatingTextSpecTest {
         assertThrows(
                 IllegalArgumentException.class,
                 () -> new FloatingTextSpec(List.of("line"), 0.25D, -1.0D)
+        );
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> new FloatingTextSpec(
+                        List.of("top", "bottom"),
+                        List.of(0.25D, 0.4D),
+                        32.0D
+                )
         );
     }
 }

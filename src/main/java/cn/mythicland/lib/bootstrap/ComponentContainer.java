@@ -66,6 +66,7 @@ public final class ComponentContainer {
                 || type.isAnnotationPresent(ListenerComponent.class)
                 || type.isAnnotationPresent(CommandComponent.class)
                 || type.isAnnotationPresent(ServiceComponent.class)
+                || type.isAnnotationPresent(ConfigComponent.class)
                 || type.isAnnotationPresent(LifecycleComponent.class)
                 || LibPluginLifecycle.class.isAssignableFrom(type);
     }
