@@ -65,8 +65,7 @@ public final class VaultEconomyBridge implements PlayerBalanceService {
             );
             RegisteredServiceProvider<?> registration = getRegistration(economyType);
             if (registration == null || registration.getProvider() == null) return false;
-            Object provider = registration.getProvider();
-            economy = provider;
+            economy = registration.getProvider();
             getBalance = economyType.getMethod("getBalance", OfflinePlayer.class);
             return true;
         } catch (ReflectiveOperationException | RuntimeException exception) {

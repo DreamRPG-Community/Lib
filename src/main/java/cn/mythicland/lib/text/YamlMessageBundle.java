@@ -7,8 +7,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
-import java.nio.file.Path;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 import java.util.Map;
 import java.util.Objects;
 import java.util.logging.Level;
@@ -38,9 +38,9 @@ public final class YamlMessageBundle {
     /**
      * Loads a YAML message file.
      *
-     * @param file          message file
+     * @param file           message file
      * @param minimumVersion minimum accepted FileVersion
-     * @param logger        logger used for a stale version notice
+     * @param logger         logger used for a stale version notice
      * @return loaded message bundle
      * @throws IOException if the file cannot be read or parsed
      */
@@ -56,10 +56,10 @@ public final class YamlMessageBundle {
     /**
      * Loads a message bundle from a plugin resource or another UTF-8 stream.
      *
-     * @param input         source stream; ownership is transferred to this method
-     * @param sourceName    source description used in diagnostics
+     * @param input          source stream; ownership is transferred to this method
+     * @param sourceName     source description used in diagnostics
      * @param minimumVersion minimum accepted FileVersion
-     * @param logger        logger used for a stale version notice
+     * @param logger         logger used for a stale version notice
      * @return loaded message bundle
      * @throws IOException if the stream cannot be read or parsed
      */

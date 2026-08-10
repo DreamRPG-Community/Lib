@@ -15,6 +15,7 @@ public interface MenuView {
      * @param player the viewer
      * @return the inventory title
      */
+    @SuppressWarnings("SameReturnValue")
     String title(Player player);
 
     /**
@@ -23,6 +24,7 @@ public interface MenuView {
      * @param player the viewer
      * @return a valid Bukkit inventory size
      */
+    @SuppressWarnings("SameReturnValue")
     int size(Player player);
 
     /**

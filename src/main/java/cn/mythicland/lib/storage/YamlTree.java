@@ -36,6 +36,7 @@ public final class YamlTree {
      * @param value source value
      * @return immutable value
      */
+    @SuppressWarnings("IfCanBeSwitch")
     public static Object immutable(Object value) {
         if (value == null || value instanceof String || value instanceof Number
                 || value instanceof Boolean || value instanceof Character || value instanceof Enum<?>) {

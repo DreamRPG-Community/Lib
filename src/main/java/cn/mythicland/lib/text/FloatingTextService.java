@@ -20,12 +20,12 @@ public interface FloatingTextService extends AutoCloseable {
     /**
      * Shows text at a world location for nearby players.
      *
-     * @param location       anchor location; it is defensively copied
-     * @param specification  text and display parameters
+     * @param location      anchor location; it is defensively copied
+     * @param specification text and display parameters
      * @return lifecycle handle
-     * @throws NullPointerException if {@code location} or {@code specification} is null
+     * @throws NullPointerException     if {@code location} or {@code specification} is null
      * @throws IllegalArgumentException if the location has no world
-     * @throws IllegalStateException if called off the Bukkit primary thread or after close
+     * @throws IllegalStateException    if called off the Bukkit primary thread or after close
      */
     FloatingTextHandle show(Location location, FloatingTextSpec specification);
 

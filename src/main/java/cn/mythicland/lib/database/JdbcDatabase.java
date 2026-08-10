@@ -2,12 +2,7 @@ package cn.mythicland.lib.database;
 
 import org.bukkit.plugin.java.JavaPlugin;
 
-import java.sql.Connection;
-import java.sql.Driver;
-import java.sql.DriverManager;
-import java.sql.DriverPropertyInfo;
-import java.sql.SQLException;
-import java.sql.SQLFeatureNotSupportedException;
+import java.sql.*;
 import java.util.Objects;
 import java.util.Properties;
 import java.util.logging.Logger;
@@ -70,6 +65,26 @@ public final class JdbcDatabase implements SqlDatabase {
         }
     }
 
+    private static String requireUrl(String jdbcUrl) {
+        String value = Objects.requireNonNull(jdbcUrl, "jdbcUrl").trim();
+        if (value.isBlank()) throw new IllegalArgumentException("jdbcUrl cannot be blank");
+        return value;
+    }
+
+    private static Properties copyProperties(Properties source) {
+        Properties copy = new Properties();
+        copy.putAll(Objects.requireNonNull(source, "properties"));
+        return copy;
+    }
+
+    private static void rollback(Connection connection, Throwable failure) {
+        try {
+            connection.rollback();
+        } catch (SQLException rollbackFailure) {
+            failure.addSuppressed(rollbackFailure);
+        }
+    }
+
     @Override
     public <T> T query(SqlWork<T> work) throws SQLException {
         return execute(work, false);
@@ -105,67 +120,41 @@ public final class JdbcDatabase implements SqlDatabase {
         }
     }
 
-    private static String requireUrl(String jdbcUrl) {
-        String value = Objects.requireNonNull(jdbcUrl, "jdbcUrl").trim();
-        if (value.isBlank()) throw new IllegalArgumentException("jdbcUrl cannot be blank");
-        return value;
-    }
-
-    private static Properties copyProperties(Properties source) {
-        Properties copy = new Properties();
-        copy.putAll(Objects.requireNonNull(source, "properties"));
-        return copy;
-    }
-
-    private static void rollback(Connection connection, Throwable failure) {
-        try {
-            connection.rollback();
-        } catch (SQLException rollbackFailure) {
-            failure.addSuppressed(rollbackFailure);
-        }
-    }
-
-    private static final class DriverRegistration implements Driver {
-
-        private final Driver delegate;
-
-        private DriverRegistration(Driver delegate) {
-            this.delegate = delegate;
-        }
+    private record DriverRegistration(Driver delegate) implements Driver {
 
         @Override
-        public Connection connect(String url, Properties info) throws SQLException {
-            return delegate.connect(url, info);
-        }
+            public Connection connect(String url, Properties info) throws SQLException {
+                return delegate.connect(url, info);
+            }
 
-        @Override
-        public boolean acceptsURL(String url) throws SQLException {
-            return delegate.acceptsURL(url);
-        }
+            @Override
+            public boolean acceptsURL(String url) throws SQLException {
+                return delegate.acceptsURL(url);
+            }
 
-        @Override
-        public DriverPropertyInfo[] getPropertyInfo(String url, Properties info) throws SQLException {
-            return delegate.getPropertyInfo(url, info);
-        }
+            @Override
+            public DriverPropertyInfo[] getPropertyInfo(String url, Properties info) throws SQLException {
+                return delegate.getPropertyInfo(url, info);
+            }
 
-        @Override
-        public int getMajorVersion() {
-            return delegate.getMajorVersion();
-        }
+            @Override
+            public int getMajorVersion() {
+                return delegate.getMajorVersion();
+            }
 
-        @Override
-        public int getMinorVersion() {
-            return delegate.getMinorVersion();
-        }
+            @Override
+            public int getMinorVersion() {
+                return delegate.getMinorVersion();
+            }
 
-        @Override
-        public boolean jdbcCompliant() {
-            return delegate.jdbcCompliant();
-        }
+            @Override
+            public boolean jdbcCompliant() {
+                return delegate.jdbcCompliant();
+            }
 
-        @Override
-        public Logger getParentLogger() throws SQLFeatureNotSupportedException {
-            return delegate.getParentLogger();
+            @Override
+            public Logger getParentLogger() throws SQLFeatureNotSupportedException {
+                return delegate.getParentLogger();
+            }
         }
-    }
 }

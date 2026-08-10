@@ -1,16 +1,10 @@
 package cn.mythicland.lib.api;
 
 import cn.mythicland.lib.bootstrap.PluginBootstrap;
-import cn.mythicland.lib.command.CommandRouter;
 import cn.mythicland.lib.container.ContainerAnimationService;
 import cn.mythicland.lib.container.PacketContainerAnimationService;
 import cn.mythicland.lib.database.DatabaseService;
-import cn.mythicland.lib.integration.PlaceholderApiBridge;
-import cn.mythicland.lib.integration.PlaceholderService;
-import cn.mythicland.lib.integration.PlayerBalanceService;
-import cn.mythicland.lib.integration.PlayerPointsBridge;
-import cn.mythicland.lib.integration.PlayerPointsService;
-import cn.mythicland.lib.integration.VaultEconomyBridge;
+import cn.mythicland.lib.integration.*;
 import cn.mythicland.lib.library.LibraryService;
 import cn.mythicland.lib.loading.PlayerLoadingGate;
 import cn.mythicland.lib.material.EnchantmentCatalog;
@@ -34,11 +28,7 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.Objects;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 
@@ -280,18 +270,6 @@ public final class LibApi implements AutoCloseable {
         );
         scheduledTasks.add(task);
         return task;
-    }
-
-    /**
-     * Creates a shared command router for a plugin command.
-     *
-     * @param commandOwner the plugin whose logger handles command failures
-     * @param rootCommand  the command root used in usage messages
-     * @return a new command router
-     * @throws NullPointerException if an argument is null
-     */
-    public CommandRouter createCommandRouter(JavaPlugin commandOwner, String rootCommand) {
-        return new CommandRouter(commandOwner, rootCommand);
     }
 
     /**

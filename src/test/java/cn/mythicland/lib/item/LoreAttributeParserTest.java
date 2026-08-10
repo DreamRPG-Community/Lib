@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class LoreAttributeParserTest {
@@ -19,7 +20,7 @@ class LoreAttributeParserTest {
         assertEquals("§b", attribute.labelColor());
         assertEquals(400.0D, attribute.value().minimum());
         assertEquals(450.0D, attribute.value().maximum());
-        assertTrue(!attribute.value().percent());
+        assertFalse(attribute.value().percent());
     }
 
     @Test

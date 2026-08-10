@@ -20,6 +20,7 @@ class YamlTreeTest {
     }
 
     @SerializableAs("YamlTreeTestValue")
+    @SuppressWarnings("SameParameterValue")
     private record TestValue(String value) implements ConfigurationSerializable {
 
         @Override

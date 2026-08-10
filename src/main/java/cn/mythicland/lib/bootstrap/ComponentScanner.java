@@ -2,17 +2,12 @@ package cn.mythicland.lib.bootstrap;
 
 import java.io.IOException;
 import java.net.JarURLConnection;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLClassLoader;
-import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.Enumeration;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 import java.util.stream.Stream;
@@ -41,13 +36,21 @@ final class ComponentScanner {
         List<Class<?>> result = new ArrayList<>();
         List<String> orderedNames = classNames.stream().sorted().toList();
         for (String className : orderedNames) {
-            try {
-                result.add(Class.forName(className, false, classLoader));
-            } catch (ClassNotFoundException exception) {
-                throw new IllegalStateException("Cannot load scanned Lib component: " + className, exception);
-            }
+            Class<?> type = loadScannedClass(classLoader, className);
+            if (type != null) result.add(type);
         }
         return List.copyOf(result);
+    }
+
+    static Class<?> loadScannedClass(ClassLoader classLoader, String className) {
+        try {
+            return Class.forName(className, false, classLoader);
+        } catch (ClassNotFoundException exception) {
+            throw new IllegalStateException("Cannot load scanned Lib component: " + className, exception);
+        } catch (NoClassDefFoundError ignored) {
+            // Optional integrations may be compiled into the plugin but not installed at runtime.
+            return null;
+        }
     }
 
     private static void collectResource(URL resource, String packagePath, Set<String> classNames) {

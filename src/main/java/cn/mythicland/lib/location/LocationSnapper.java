@@ -44,6 +44,59 @@ public final class LocationSnapper {
         );
     }
 
+    /**
+     * Snaps X and Z to the center of their blocks while preserving the source view angles.
+     * This is useful when a relative direction must be calculated from stable block centers.
+     * Y remains unchanged.
+     *
+     * @param location source location
+     * @return snapped defensive copy
+     * @throws IllegalArgumentException if the location or its world is missing
+     */
+    public static Location snapBlockCenter(Location location) {
+        if (location == null) throw new IllegalArgumentException("location must not be null");
+        if (location.getWorld() == null) {
+            throw new IllegalArgumentException("location world must not be null");
+        }
+
+        return new Location(
+                location.getWorld(),
+                Math.floor(location.getX()) + 0.5D,
+                location.getY(),
+                Math.floor(location.getZ()) + 0.5D,
+                location.getYaw(),
+                location.getPitch()
+        );
+    }
+
+    /**
+     * Snaps X and Z to the center of their blocks, rounds yaw to a 45-degree step, and clears
+     * pitch. This is useful for NPCs that should face a player horizontally without looking up
+     * or down. Y remains unchanged.
+     *
+     * @param location source location
+     * @return snapped defensive copy with a zero pitch
+     * @throws IllegalArgumentException if the location or its world is missing
+     */
+    public static Location snapBlockAndHorizontalView(Location location) {
+        if (location == null) throw new IllegalArgumentException("location must not be null");
+        if (location.getWorld() == null) {
+            throw new IllegalArgumentException("location world must not be null");
+        }
+
+        double snappedX = Math.floor(location.getX()) + 0.5D;
+        double snappedZ = Math.floor(location.getZ()) + 0.5D;
+        float snappedYaw = normalizeYaw(snapToStep(location.getYaw()));
+        return new Location(
+                location.getWorld(),
+                snappedX,
+                location.getY(),
+                snappedZ,
+                snappedYaw,
+                0.0F
+        );
+    }
+
     private static float snapToStep(float angle) {
         return Math.round(angle / VIEW_STEP) * VIEW_STEP;
     }
@@ -56,6 +109,6 @@ public final class LocationSnapper {
     }
 
     private static float clampPitch(float pitch) {
-        return Math.max(MIN_PITCH, Math.min(MAX_PITCH, pitch));
+        return Math.clamp(pitch, MIN_PITCH, MAX_PITCH);
     }
 }

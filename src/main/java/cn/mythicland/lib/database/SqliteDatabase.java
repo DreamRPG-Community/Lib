@@ -5,13 +5,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.sql.Connection;
-import java.sql.Driver;
-import java.sql.DriverManager;
-import java.sql.DriverPropertyInfo;
-import java.sql.SQLException;
-import java.sql.SQLFeatureNotSupportedException;
-import java.sql.Statement;
+import java.sql.*;
 import java.util.Objects;
 import java.util.Properties;
 import java.util.logging.Logger;
@@ -42,9 +36,9 @@ public final class SqliteDatabase implements SqlDatabase {
     /**
      * Opens an SQLite database and registers its driver through a standard JDBC shim.
      *
-     * @param owner          plugin receiving startup diagnostics
-     * @param databaseFile   plugin-owned database path
-     * @param driverClassName driver implementation class, normally {@code org.sqlite.JDBC}
+     * @param owner             plugin receiving startup diagnostics
+     * @param databaseFile      plugin-owned database path
+     * @param driverClassName   driver implementation class, normally {@code org.sqlite.JDBC}
      * @param driverClassLoader class loader containing the verified driver JAR
      * @return open SQLite database
      * @throws IllegalStateException if the path, driver, or JDBC registration is invalid
@@ -87,6 +81,20 @@ public final class SqliteDatabase implements SqlDatabase {
             );
         } catch (ReflectiveOperationException | SQLException exception) {
             throw new IllegalStateException("Failed to initialize SQLite driver: " + driverClassName, exception);
+        }
+    }
+
+    private static void configureConnection(Connection connection) throws SQLException {
+        try (Statement statement = connection.createStatement()) {
+            statement.execute("PRAGMA busy_timeout = " + BUSY_TIMEOUT_MILLISECONDS);
+        }
+    }
+
+    private static void rollback(Connection connection, Throwable failure) {
+        try {
+            connection.rollback();
+        } catch (SQLException rollbackFailure) {
+            failure.addSuppressed(rollbackFailure);
         }
     }
 
@@ -167,61 +175,41 @@ public final class SqliteDatabase implements SqlDatabase {
         }
     }
 
-    private static void configureConnection(Connection connection) throws SQLException {
-        try (Statement statement = connection.createStatement()) {
-            statement.execute("PRAGMA busy_timeout = " + BUSY_TIMEOUT_MILLISECONDS);
-        }
-    }
-
-    private static void rollback(Connection connection, Throwable failure) {
-        try {
-            connection.rollback();
-        } catch (SQLException rollbackFailure) {
-            failure.addSuppressed(rollbackFailure);
-        }
-    }
-
-    private static final class DriverRegistration implements Driver {
-
-        private final Driver delegate;
-
-        private DriverRegistration(Driver delegate) {
-            this.delegate = delegate;
-        }
+    private record DriverRegistration(Driver delegate) implements Driver {
 
         @Override
-        public Connection connect(String url, Properties info) throws SQLException {
-            return delegate.connect(url, info);
-        }
+            public Connection connect(String url, Properties info) throws SQLException {
+                return delegate.connect(url, info);
+            }
 
-        @Override
-        public boolean acceptsURL(String url) throws SQLException {
-            return delegate.acceptsURL(url);
-        }
+            @Override
+            public boolean acceptsURL(String url) throws SQLException {
+                return delegate.acceptsURL(url);
+            }
 
-        @Override
-        public DriverPropertyInfo[] getPropertyInfo(String url, Properties info) throws SQLException {
-            return delegate.getPropertyInfo(url, info);
-        }
+            @Override
+            public DriverPropertyInfo[] getPropertyInfo(String url, Properties info) throws SQLException {
+                return delegate.getPropertyInfo(url, info);
+            }
 
-        @Override
-        public int getMajorVersion() {
-            return delegate.getMajorVersion();
-        }
+            @Override
+            public int getMajorVersion() {
+                return delegate.getMajorVersion();
+            }
 
-        @Override
-        public int getMinorVersion() {
-            return delegate.getMinorVersion();
-        }
+            @Override
+            public int getMinorVersion() {
+                return delegate.getMinorVersion();
+            }
 
-        @Override
-        public boolean jdbcCompliant() {
-            return delegate.jdbcCompliant();
-        }
+            @Override
+            public boolean jdbcCompliant() {
+                return delegate.jdbcCompliant();
+            }
 
-        @Override
-        public Logger getParentLogger() throws SQLFeatureNotSupportedException {
-            return delegate.getParentLogger();
+            @Override
+            public Logger getParentLogger() throws SQLFeatureNotSupportedException {
+                return delegate.getParentLogger();
+            }
         }
-    }
 }

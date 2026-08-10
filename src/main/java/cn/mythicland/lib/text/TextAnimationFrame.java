@@ -5,7 +5,7 @@ import java.util.Objects;
 /**
  * One immutable text animation frame.
  *
- * @param text     raw text before legacy color conversion
+ * @param text      raw text before legacy color conversion
  * @param holdTicks number of animation ticks for which the frame remains visible
  */
 public record TextAnimationFrame(String text, int holdTicks) {

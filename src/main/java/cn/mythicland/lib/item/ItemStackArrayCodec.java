@@ -40,7 +40,7 @@ public final class ItemStackArrayCodec {
     /**
      * Deserializes an item array and enforces the expected slot count.
      *
-     * @param encoded       Base64 payload
+     * @param encoded        Base64 payload
      * @param expectedLength required number of slots
      * @return a detached item array
      */

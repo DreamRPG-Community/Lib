@@ -41,6 +41,25 @@ public record LibrarySpec(
         }
     }
 
+    private static boolean containsBlank(String[] values) {
+        for (String value : values) {
+            if (value.isBlank()) return true;
+        }
+        return false;
+    }
+
+    private static boolean containsPathSeparator(String value) {
+        return value.indexOf('/') >= 0 || value.indexOf('\\') >= 0 || value.contains("..")
+                || value.indexOf('\u0000') >= 0;
+    }
+
+    private static boolean containsSafeCoordinateSegments(String[] values) {
+        for (String value : values) {
+            if (!value.matches("[A-Za-z0-9_.+\\-]+")) return false;
+        }
+        return true;
+    }
+
     /**
      * Returns the Maven group identifier.
      *
@@ -78,24 +97,5 @@ public record LibrarySpec(
                 + "/" + artifactId()
                 + "/" + version()
                 + "/" + fileName;
-    }
-
-    private static boolean containsBlank(String[] values) {
-        for (String value : values) {
-            if (value.isBlank()) return true;
-        }
-        return false;
-    }
-
-    private static boolean containsPathSeparator(String value) {
-        return value.indexOf('/') >= 0 || value.indexOf('\\') >= 0 || value.contains("..")
-                || value.indexOf('\u0000') >= 0;
-    }
-
-    private static boolean containsSafeCoordinateSegments(String[] values) {
-        for (String value : values) {
-            if (!value.matches("[A-Za-z0-9_.+\\-]+")) return false;
-        }
-        return true;
     }
 }

@@ -5,7 +5,7 @@ import java.util.Objects;
 /**
  * One ordered SQL migration resource.
  *
- * @param version     positive migration version
+ * @param version      positive migration version
  * @param resourcePath plugin resource path containing SQL
  */
 public record MigrationSpec(

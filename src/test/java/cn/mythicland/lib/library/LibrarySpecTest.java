@@ -53,14 +53,14 @@ class LibrarySpecTest {
     }
 
     @Test
-    void loadResultCopiesItsJarList() {
+    void loadResultCopiesItsJarList() throws Exception {
         Path artifact = Path.of("artifact.jar");
-        LibraryLoadResult result = new LibraryLoadResult(
+        try (LibraryLoadResult result = new LibraryLoadResult(
                 new java.util.ArrayList<>(List.of(artifact)),
                 ClassLoader.getSystemClassLoader()
-        );
-
-        assertThrows(UnsupportedOperationException.class, () -> result.jars().add(Path.of("other.jar")));
-        assertEquals(List.of(artifact), result.jars());
+        )) {
+            assertThrows(UnsupportedOperationException.class, () -> result.jars().add(Path.of("other.jar")));
+            assertEquals(List.of(artifact), result.jars());
+        }
     }
 }

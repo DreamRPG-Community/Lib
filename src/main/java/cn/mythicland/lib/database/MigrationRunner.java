@@ -9,13 +9,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Comparator;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 
 /**
  * Applies plugin-owned SQL migrations using a shared database transaction boundary.
@@ -23,34 +17,6 @@ import java.util.Set;
 public final class MigrationRunner {
 
     private static final String HISTORY_TABLE = "lib_schema_history";
-
-    /**
-     * Applies every migration not already recorded in the database.
-     *
-     * @param database       target database
-     * @param plugin         plugin owning migration resources
-     * @param migrationSpecs ordered migration descriptors
-     * @throws IOException  when a migration resource cannot be read
-     * @throws SQLException when migration SQL fails
-     */
-    public void migrate(
-            SqlDatabase database,
-            JavaPlugin plugin,
-            Collection<MigrationSpec> migrationSpecs
-    ) throws IOException, SQLException {
-        Objects.requireNonNull(database, "database");
-        Objects.requireNonNull(plugin, "plugin");
-        List<Migration> migrations = resolveMigrations(plugin, migrationSpecs);
-        database.transaction(connection -> {
-            createHistoryTable(connection);
-            Set<Integer> appliedVersions = appliedVersions(connection);
-            for (Migration migration : migrations) {
-                if (appliedVersions.contains(migration.specification().version())) continue;
-                applyMigration(connection, migration);
-            }
-            return null;
-        });
-    }
 
     private static List<Migration> resolveMigrations(
             JavaPlugin plugin,
@@ -107,6 +73,7 @@ public final class MigrationRunner {
         return versions;
     }
 
+    @SuppressWarnings("SqlSourceToSinkFlow")
     private static void applyMigration(
             java.sql.Connection connection,
             Migration migration
@@ -122,6 +89,34 @@ public final class MigrationRunner {
             statement.setLong(3, System.currentTimeMillis());
             statement.executeUpdate();
         }
+    }
+
+    /**
+     * Applies every migration not already recorded in the database.
+     *
+     * @param database       target database
+     * @param plugin         plugin owning migration resources
+     * @param migrationSpecs ordered migration descriptors
+     * @throws IOException  when a migration resource cannot be read
+     * @throws SQLException when migration SQL fails
+     */
+    public void migrate(
+            SqlDatabase database,
+            JavaPlugin plugin,
+            Collection<MigrationSpec> migrationSpecs
+    ) throws IOException, SQLException {
+        Objects.requireNonNull(database, "database");
+        Objects.requireNonNull(plugin, "plugin");
+        List<Migration> migrations = resolveMigrations(plugin, migrationSpecs);
+        database.transaction(connection -> {
+            createHistoryTable(connection);
+            Set<Integer> appliedVersions = appliedVersions(connection);
+            for (Migration migration : migrations) {
+                if (appliedVersions.contains(migration.specification().version())) continue;
+                applyMigration(connection, migration);
+            }
+            return null;
+        });
     }
 
     private record Migration(MigrationSpec specification, String sql) {

@@ -30,6 +30,7 @@ public record ContainerAnimationSpec(
     /**
      * Validates animation parameters.
      */
+    @SuppressWarnings("DataFlowIssue")
     public ContainerAnimationSpec {
         if (blockAction < 0) throw new IllegalArgumentException("blockAction cannot be negative");
         openSound = Objects.requireNonNull(openSound, "openSound");

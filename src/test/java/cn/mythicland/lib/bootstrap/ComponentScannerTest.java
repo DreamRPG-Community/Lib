@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -20,5 +21,17 @@ class ComponentScannerTest {
 
         assertTrue(classes.contains(ComponentContainer.class));
         assertTrue(classes.contains(PluginBootstrap.class));
+    }
+
+    @Test
+    void scannerSkipsClassesWhoseOptionalDependencyIsAbsent() {
+        ClassLoader classLoader = new ClassLoader(null) {
+            @Override
+            protected Class<?> loadClass(String name, boolean resolve) {
+                throw new NoClassDefFoundError("optional/dependency/Type");
+            }
+        };
+
+        assertNull(ComponentScanner.loadScannedClass(classLoader, "optional.Component"));
     }
 }

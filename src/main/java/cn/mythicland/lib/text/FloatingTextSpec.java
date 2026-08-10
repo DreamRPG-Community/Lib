@@ -6,9 +6,9 @@ import java.util.Objects;
 /**
  * Immutable specification for client-side floating text.
  *
- * @param lines            lines rendered from top to bottom
- * @param lineSpacing      vertical distance between lines in blocks
- * @param viewDistance     maximum distance at which a player receives the packets
+ * @param lines        lines rendered from top to bottom
+ * @param lineSpacing  vertical distance between lines in blocks
+ * @param viewDistance maximum distance at which a player receives the packets
  */
 public record FloatingTextSpec(
         List<String> lines,
@@ -19,7 +19,7 @@ public record FloatingTextSpec(
     /**
      * Validates and defensively copies the specification.
      *
-     * @throws NullPointerException if {@code lines} or a line is null
+     * @throws NullPointerException     if {@code lines} or a line is null
      * @throws IllegalArgumentException if the line count, line spacing, or view distance is invalid
      */
     public FloatingTextSpec {

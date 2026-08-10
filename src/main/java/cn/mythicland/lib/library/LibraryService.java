@@ -5,11 +5,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.net.HttpURLConnection;
-import java.net.URI;
-import java.net.URL;
-import java.net.URLClassLoader;
-import java.net.URLConnection;
+import java.net.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
@@ -17,12 +13,7 @@ import java.nio.file.StandardOpenOption;
 import java.security.DigestInputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 import java.util.logging.Logger;
 
 /**
@@ -33,53 +24,14 @@ import java.util.logging.Logger;
  */
 public final class LibraryService {
 
-    /** Default Maven Central repository root. */
+    /**
+     * Default Maven Central repository root.
+     */
     public static final URI DEFAULT_REPOSITORY = URI.create("https://repo1.maven.org/maven2/");
 
     private static final int CONNECT_TIMEOUT_MILLIS = 30_000;
     private static final int READ_TIMEOUT_MILLIS = 60_000;
     private static final String LIBRARY_DIRECTORY_NAME = "libs";
-
-    /**
-     * Loads the requested libraries into a class loader owned by the requesting plugin.
-     *
-     * <p>This method is intentionally synchronous and should be called during plugin startup,
-     * before classes that use the external library are initialized. A verified cache is used
-     * without network access. Download or class-loader failures are fatal to the caller.</p>
-     *
-     * <p>The download path is blocking. Callers must not invoke it from a request or gameplay
-     * callback that cannot tolerate network latency.</p>
-     *
-     * @param requester     plugin that owns the cache directory and dependency class loader
-     * @param specifications immutable library specifications
-     * @param repository    one repository root used to resolve every specification
-     * @return verified paths and a dependency class loader whose parent is the plugin loader
-     * @throws IllegalStateException if a library cannot be verified, downloaded, or loaded
-     */
-    public LibraryLoadResult load(
-            JavaPlugin requester,
-            Collection<LibrarySpec> specifications,
-            URI repository
-    ) {
-        Objects.requireNonNull(requester, "requester");
-        Objects.requireNonNull(specifications, "specifications");
-        URI normalizedRepository = normalizeRepository(repository);
-        URLClassLoader pluginClassLoader = requireUrlClassLoader(requester);
-        List<LibrarySpec> requestedLibraries = List.copyOf(specifications);
-        validateUniqueFileNames(requestedLibraries);
-
-        Path libraryDirectory = resolveLibraryDirectory(requester);
-        ensureLibraryDirectory(libraryDirectory);
-        List<Path> resolvedJars = new ArrayList<>();
-        for (LibrarySpec specification : requestedLibraries) {
-            Path jar = resolveJar(libraryDirectory, specification);
-            resolveJarFile(requester.getLogger(), specification, normalizedRepository, jar);
-            resolvedJars.add(jar);
-        }
-
-        ClassLoader dependencyClassLoader = createDependencyClassLoader(pluginClassLoader, resolvedJars);
-        return new LibraryLoadResult(resolvedJars, dependencyClassLoader);
-    }
 
     private static URI normalizeRepository(URI repository) {
         Objects.requireNonNull(repository, "repository");
@@ -311,5 +263,46 @@ public final class LibraryService {
                 urls.toArray(URL[]::new),
                 pluginClassLoader
         );
+    }
+
+    /**
+     * Loads the requested libraries into a class loader owned by the requesting plugin.
+     *
+     * <p>This method is intentionally synchronous and should be called during plugin startup,
+     * before classes that use the external library are initialized. A verified cache is used
+     * without network access. Download or class-loader failures are fatal to the caller.</p>
+     *
+     * <p>The download path is blocking. Callers must not invoke it from a request or gameplay
+     * callback that cannot tolerate network latency.</p>
+     *
+     * @param requester      plugin that owns the cache directory and dependency class loader
+     * @param specifications immutable library specifications
+     * @param repository     one repository root used to resolve every specification
+     * @return verified paths and a dependency class loader whose parent is the plugin loader
+     * @throws IllegalStateException if a library cannot be verified, downloaded, or loaded
+     */
+    public LibraryLoadResult load(
+            JavaPlugin requester,
+            Collection<LibrarySpec> specifications,
+            URI repository
+    ) {
+        Objects.requireNonNull(requester, "requester");
+        Objects.requireNonNull(specifications, "specifications");
+        URI normalizedRepository = normalizeRepository(repository);
+        URLClassLoader pluginClassLoader = requireUrlClassLoader(requester);
+        List<LibrarySpec> requestedLibraries = List.copyOf(specifications);
+        validateUniqueFileNames(requestedLibraries);
+
+        Path libraryDirectory = resolveLibraryDirectory(requester);
+        ensureLibraryDirectory(libraryDirectory);
+        List<Path> resolvedJars = new ArrayList<>();
+        for (LibrarySpec specification : requestedLibraries) {
+            Path jar = resolveJar(libraryDirectory, specification);
+            resolveJarFile(requester.getLogger(), specification, normalizedRepository, jar);
+            resolvedJars.add(jar);
+        }
+
+        ClassLoader dependencyClassLoader = createDependencyClassLoader(pluginClassLoader, resolvedJars);
+        return new LibraryLoadResult(resolvedJars, dependencyClassLoader);
     }
 }

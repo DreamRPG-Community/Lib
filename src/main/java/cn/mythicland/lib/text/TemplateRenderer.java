@@ -30,7 +30,7 @@ public final class TemplateRenderer {
     /**
      * Creates a renderer using a shared Lib placeholder bridge.
      *
-     * @param owner             plugin receiving validation context
+     * @param owner              plugin receiving validation context
      * @param placeholderService shared placeholder service
      */
     public TemplateRenderer(JavaPlugin owner, PlaceholderService placeholderService) {
@@ -39,11 +39,31 @@ public final class TemplateRenderer {
     }
 
     /**
+     * Returns whether text contains a conventional PlaceholderAPI token.
+     *
+     * @param text text to inspect
+     * @return true when a percent-delimited token is present
+     */
+    public static boolean containsPlaceholderApiToken(String text) {
+        return PLACEHOLDER_API_TOKEN.matcher(Objects.requireNonNull(text, "text")).find();
+    }
+
+    private static String replaceNative(String template, Map<String, ?> nativeValues) {
+        String rendered = template;
+        for (Map.Entry<String, ?> entry : nativeValues.entrySet()) {
+            String token = "{" + entry.getKey() + "}";
+            String value = Objects.toString(entry.getValue(), "");
+            rendered = rendered.replace(token, value);
+        }
+        return rendered;
+    }
+
+    /**
      * Renders a template for one player.
      *
-     * @param template      template containing {@code {name}}-style native placeholders
-     * @param player        player used by optional PlaceholderAPI
-     * @param nativeValues  native placeholder values without braces
+     * @param template     template containing {@code {name}}-style native placeholders
+     * @param player       player used by optional PlaceholderAPI
+     * @param nativeValues native placeholder values without braces
      * @return translated legacy text
      */
     public String render(
@@ -67,26 +87,6 @@ public final class TemplateRenderer {
      */
     public boolean isPlaceholderApiAvailable() {
         return placeholderService.isAvailable();
-    }
-
-    /**
-     * Returns whether text contains a conventional PlaceholderAPI token.
-     *
-     * @param text text to inspect
-     * @return true when a percent-delimited token is present
-     */
-    public static boolean containsPlaceholderApiToken(String text) {
-        return PLACEHOLDER_API_TOKEN.matcher(Objects.requireNonNull(text, "text")).find();
-    }
-
-    private static String replaceNative(String template, Map<String, ?> nativeValues) {
-        String rendered = template;
-        for (Map.Entry<String, ?> entry : nativeValues.entrySet()) {
-            String token = "{" + entry.getKey() + "}";
-            String value = Objects.toString(entry.getValue(), "");
-            rendered = rendered.replace(token, value);
-        }
-        return rendered;
     }
 
 }

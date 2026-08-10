@@ -1,6 +1,9 @@
 package cn.mythicland.lib.command;
 
 import cn.mythicland.lib.api.LibApi;
+import cn.mythicland.lib.bootstrap.annotation.CommandCompleter;
+import cn.mythicland.lib.bootstrap.annotation.CommandComponent;
+import cn.mythicland.lib.bootstrap.annotation.CommandHandler;
 import org.bukkit.ChatColor;
 import org.bukkit.command.CommandSender;
 import org.junit.jupiter.api.Test;
@@ -9,7 +12,9 @@ import java.lang.reflect.Proxy;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Logger;
+import java.util.function.Predicate;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -17,13 +22,80 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class CommandRouterTest {
 
     @Test
-    void defaultSubcommandHandlesBareRootCommand() {
+    void annotatedRootHandlerHandlesBareRootCommand() {
         AtomicBoolean executed = new AtomicBoolean();
         CommandRouter router = new CommandRouter(Logger.getLogger("CommandRouterTest"), "edit");
-        router.registerDefault(new TestSubcommand(executed));
+        router.registerAnnotated(new RootCommand(executed));
 
         assertTrue(router.onCommand(sender(), null, "edit", new String[0]));
         assertTrue(executed.get());
+    }
+
+    @Test
+    void annotatedRootHandlerReceivesPositionalArguments() {
+        AtomicReference<List<String>> received = new AtomicReference<>();
+        CommandRouter router = new CommandRouter(Logger.getLogger("CommandRouterTest"), "gm");
+        router.registerAnnotated(new RootArgumentCommand(received));
+
+        assertTrue(router.onCommand(sender(), null, "gm", new String[]{"0"}));
+        assertEquals(List.of("0"), received.get());
+        assertEquals(
+                List.of("0", "1", "2", "3"),
+                router.onTabComplete(sender(), null, "gm", new String[]{""})
+        );
+    }
+
+    @Test
+    void annotatedPermissionAndCompleterAreApplied() {
+        CommandRouter router = new CommandRouter(Logger.getLogger("CommandRouterTest"), "example");
+        router.registerAnnotated(new AnnotatedCommand());
+
+        assertEquals(
+                List.of("one"),
+                router.onTabComplete(sender(), null, "example", new String[]{"reload", ""})
+        );
+    }
+
+    @Test
+    void nestedAnnotatedPathsRouteArgumentsAndCompletion() {
+        List<String> received = new ArrayList<>();
+        CommandRouter router = new CommandRouter(Logger.getLogger("CommandRouterTest"), "nested");
+        router.registerAnnotated(new NestedCommand(received));
+
+        assertTrue(router.onCommand(
+                sender(),
+                null,
+                "nested",
+                new String[]{"cmd", "add", "player", "say", "hello"}
+        ));
+        assertEquals(List.of("player", "say", "hello"), received);
+        assertEquals(
+                List.of("player", "console"),
+                router.onTabComplete(sender(), null, "nested", new String[]{"cmd", "add", ""})
+        );
+    }
+
+    @Test
+    void dynamicPermissionIsResolvedAtInvocationTime() {
+        DynamicPermissionCommand command = new DynamicPermissionCommand();
+        CommandRouter router = new CommandRouter(Logger.getLogger("CommandRouterTest"), "dynamic");
+        router.registerAnnotated(command);
+
+        assertTrue(router.onCommand(
+                sender(new ArrayList<>(), permission -> permission.equals("first")),
+                null,
+                "dynamic",
+                new String[0]
+        ));
+        command.permission = "second";
+        List<String> messages = new ArrayList<>();
+        assertTrue(router.onCommand(
+                sender(messages, permission -> permission.equals("first")),
+                null,
+                "dynamic",
+                new String[0]
+        ));
+        assertTrue(messages.stream().anyMatch(message -> message.contains("没有执行此命令的权限")));
     }
 
     @Test
@@ -48,21 +120,6 @@ class CommandRouterTest {
     }
 
     @Test
-    void explicitHelpListsCommandsWithoutRootPlaceholder() {
-        List<String> messages = new ArrayList<>();
-        CommandRouter router = new CommandRouter(
-                Logger.getLogger("CommandRouterTest"),
-                "worldmanager"
-        );
-        router.register(new TestSubcommand(new AtomicBoolean()));
-
-        assertTrue(router.onCommand(sender(messages), null, "worldmanager", new String[]{"help"}));
-        assertEquals(1, messages.size());
-        assertEquals(VanillaCommandMessages.usage("/edit"), messages.getFirst());
-        assertTrue(messages.stream().noneMatch(message -> message.contains("<子命令>")));
-    }
-
-    @Test
     void rootCauseMessageUsesTheDeepestCause() {
         Throwable error = new IllegalStateException(
                 "outer",
@@ -73,10 +130,10 @@ class CommandRouterTest {
     }
 
     private CommandSender sender() {
-        return sender(new ArrayList<>());
+        return sender(new ArrayList<>(), permission -> true);
     }
 
-    private CommandSender sender(List<String> messages) {
+    private CommandSender sender(List<String> messages, Predicate<String> permissions) {
         return (CommandSender) Proxy.newProxyInstance(
                 CommandSender.class.getClassLoader(),
                 new Class<?>[]{CommandSender.class},
@@ -85,7 +142,10 @@ class CommandRouterTest {
                         messages.add((String) arguments[0]);
                         return null;
                     }
-                    if (method.getReturnType() == boolean.class) return false;
+                    if (method.getName().equals("hasPermission")) {
+                        return permissions.test((String) arguments[0]);
+                    }
+                    if (method.getReturnType() == boolean.class) return true;
                     if (method.getReturnType() == int.class) return 0;
                     if (method.getReturnType() == long.class) return 0L;
                     if (method.getReturnType() == float.class) return 0.0F;
@@ -98,22 +158,89 @@ class CommandRouterTest {
         );
     }
 
-    private record TestSubcommand(AtomicBoolean executed) implements Subcommand {
+    @CommandComponent("edit")
+    private static final class RootCommand {
 
-        @Override
-        public String name() {
-            return "edit";
+        private final AtomicBoolean executed;
+
+        private RootCommand(AtomicBoolean executed) {
+            this.executed = executed;
         }
 
-        @Override
-        public String usage() {
-            return "/edit";
-        }
-
-        @Override
-        public void execute(CommandSender sender, List<String> arguments) {
+        @CommandHandler
+        private void execute(CommandContext context) {
+            context.requireArguments(0);
             executed.set(true);
         }
     }
 
+    @CommandComponent("gm")
+    private static final class RootArgumentCommand {
+
+        private final AtomicReference<List<String>> received;
+
+        private RootArgumentCommand(AtomicReference<List<String>> received) {
+            this.received = received;
+        }
+
+        @CommandHandler
+        private void execute(CommandContext context) {
+            received.set(context.arguments());
+        }
+
+        @CommandCompleter
+        private List<String> complete(CommandContext context) {
+            return List.of("0", "1", "2", "3");
+        }
+    }
+
+    @CommandComponent("example")
+    private static final class AnnotatedCommand {
+
+        @CommandHandler(value = "reload", permission = "example.reload")
+        private void reload(CommandContext context) {
+            context.requireArguments(1);
+        }
+
+        @CommandCompleter("reload")
+        private List<String> complete(CommandContext context) {
+            return List.of("one");
+        }
+    }
+
+    @CommandComponent("nested")
+    private static final class NestedCommand {
+
+        private final List<String> received;
+
+        private NestedCommand(List<String> received) {
+            this.received = received;
+        }
+
+        @CommandHandler(value = "cmd add", permission = "nested.add")
+        private void add(CommandContext context) {
+            context.requireAtLeast(3);
+            received.addAll(context.arguments());
+        }
+
+        @CommandCompleter("cmd add")
+        private List<String> complete(CommandContext context) {
+            return List.of("player", "console");
+        }
+    }
+
+    @CommandComponent("dynamic")
+    private static final class DynamicPermissionCommand {
+
+        private String permission = "first";
+
+        @CommandHandler(permissionMethod = "permission")
+        private void execute(CommandContext context) {
+            context.requireArguments(0);
+        }
+
+        private String permission() {
+            return permission;
+        }
+    }
 }

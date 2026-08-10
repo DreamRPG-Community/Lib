@@ -1,11 +1,7 @@
 package cn.mythicland.lib.bootstrap;
 
 import cn.mythicland.lib.api.LibApi;
-import cn.mythicland.lib.bootstrap.annotation.DefaultImplementation;
-import cn.mythicland.lib.bootstrap.annotation.InjectComponent;
-import cn.mythicland.lib.bootstrap.annotation.ListenerComponent;
-import cn.mythicland.lib.bootstrap.annotation.CommandComponent;
-import cn.mythicland.lib.bootstrap.annotation.ServiceComponent;
+import cn.mythicland.lib.bootstrap.annotation.*;
 import cn.mythicland.lib.container.ContainerAnimationService;
 import cn.mythicland.lib.loading.PlayerLoadingGate;
 import cn.mythicland.lib.menu.MenuService;
@@ -18,13 +14,7 @@ import java.lang.annotation.Annotation;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Modifier;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
 
@@ -37,7 +27,6 @@ import java.util.logging.Logger;
  */
 public final class ComponentContainer {
 
-    private final String basePackage;
     private final Set<Class<?>> managedTypes;
     private final Map<Class<?>, Object> singletons = new ConcurrentHashMap<>();
     private final ThreadLocal<List<Class<?>>> resolvingTypes = ThreadLocal.withInitial(ArrayList::new);
@@ -45,8 +34,8 @@ public final class ComponentContainer {
     /**
      * Creates a container for one plugin package.
      *
-     * @param plugin     requesting plugin and built-in JavaPlugin dependency
-     * @param lib        shared Lib service dependency
+     * @param plugin      requesting plugin and built-in JavaPlugin dependency
+     * @param lib         shared Lib service dependency
      * @param basePackage package scanned for Lib annotations
      */
     public ComponentContainer(
@@ -56,16 +45,71 @@ public final class ComponentContainer {
     ) {
         Objects.requireNonNull(plugin, "plugin");
         Objects.requireNonNull(lib, "lib");
-        this.basePackage = requireBasePackage(basePackage);
-        this.managedTypes = discoverManagedTypes(plugin.getClass().getClassLoader(), this.basePackage);
+        String packageName = requireBasePackage(basePackage);
+        this.managedTypes = discoverManagedTypes(plugin.getClass().getClassLoader(), packageName);
         registerBuiltIns(plugin, lib);
+    }
+
+    private static Set<Class<?>> discoverManagedTypes(ClassLoader classLoader, String basePackage) {
+        Set<Class<?>> discovered = new LinkedHashSet<>();
+        for (Class<?> type : ComponentScanner.scan(classLoader, basePackage)) {
+            if (isManaged(type)) discovered.add(type);
+        }
+        if (discovered.isEmpty()) {
+            throw new IllegalStateException("No Lib components found below package: " + basePackage);
+        }
+        return Set.copyOf(discovered);
+    }
+
+    private static boolean isManaged(Class<?> type) {
+        return type.isAnnotationPresent(InjectComponent.class)
+                || type.isAnnotationPresent(ListenerComponent.class)
+                || type.isAnnotationPresent(CommandComponent.class)
+                || type.isAnnotationPresent(ServiceComponent.class)
+                || type.isAnnotationPresent(LifecycleComponent.class)
+                || LibPluginLifecycle.class.isAssignableFrom(type);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static <T> Constructor<? extends T> resolveConstructor(Class<? extends T> implementation) {
+        List<Constructor<?>> constructors = new ArrayList<>();
+        for (Constructor<?> constructor : implementation.getDeclaredConstructors()) {
+            if (!Modifier.isPrivate(constructor.getModifiers())) constructors.add(constructor);
+        }
+        if (constructors.size() != 1) {
+            throw new IllegalStateException(
+                    "Injectable component must declare exactly one non-private constructor: "
+                            + implementation.getName()
+            );
+        }
+        return (Constructor<? extends T>) constructors.getFirst();
+    }
+
+    private static IllegalStateException componentFailure(Class<?> implementation, Throwable failure) {
+        return new IllegalStateException(
+                "Failed to create Lib component: " + implementation.getName(),
+                failure
+        );
+    }
+
+    private static String formatCircularDependency(List<Class<?>> resolving, Class<?> repeatedType) {
+        List<String> names = new ArrayList<>();
+        for (Class<?> type : resolving) names.add(type.getName());
+        names.add(repeatedType.getName());
+        return "Circular Lib component dependency detected: " + String.join(" -> ", names);
+    }
+
+    private static String requireBasePackage(String value) {
+        String packageName = Objects.requireNonNull(value, "basePackage").trim();
+        if (packageName.isBlank()) throw new IllegalArgumentException("basePackage cannot be blank");
+        return packageName;
     }
 
     /**
      * Resolves one component or built-in dependency as a cached singleton.
      *
      * @param requestedType requested type
-     * @param <T> requested type
+     * @param <T>           requested type
      * @return resolved singleton
      */
     public <T> T resolve(Class<T> requestedType) {
@@ -86,17 +130,33 @@ public final class ComponentContainer {
      * Resolves every managed component assignable to a contract in stable class-name order.
      *
      * @param contract component contract
-     * @param <T> contract type
+     * @param <T>      contract type
      * @return immutable resolved components
      */
     public <T> List<T> resolveAll(Class<T> contract) {
         Objects.requireNonNull(contract, "contract");
-        List<Class<?>> candidates = managedTypes.stream()
-                .filter(contract::isAssignableFrom)
-                .sorted(Comparator.comparing(Class::getName))
-                .toList();
+        List<Class<?>> candidates = candidateTypes(contract);
         List<T> result = new ArrayList<>();
         for (Class<?> candidate : candidates) result.add(contract.cast(resolve(candidate)));
+        return List.copyOf(result);
+    }
+
+    /**
+     * Resolves every managed component assignable to a contract in dependency order.
+     *
+     * <p>{@link LifecycleComponent#dependsOn()} dependencies must refer to another component in
+     * the same resolved set. Components without dependencies retain stable class-name ordering.</p>
+     *
+     * @param contract component contract
+     * @param <T>      contract type
+     * @return immutable resolved components
+     */
+    public <T> List<T> resolveAllOrdered(Class<T> contract) {
+        Objects.requireNonNull(contract, "contract");
+        List<T> result = new ArrayList<>();
+        for (Class<?> candidate : LifecycleSorter.sort(candidateTypes(contract))) {
+            result.add(contract.cast(resolve(candidate)));
+        }
         return List.copyOf(result);
     }
 
@@ -122,24 +182,6 @@ public final class ComponentContainer {
         resolvingTypes.remove();
     }
 
-    private static Set<Class<?>> discoverManagedTypes(ClassLoader classLoader, String basePackage) {
-        Set<Class<?>> discovered = new LinkedHashSet<>();
-        for (Class<?> type : ComponentScanner.scan(classLoader, basePackage)) {
-            if (isManaged(type)) discovered.add(type);
-        }
-        if (discovered.isEmpty()) {
-            throw new IllegalStateException("No Lib components found below package: " + basePackage);
-        }
-        return Set.copyOf(discovered);
-    }
-
-    private static boolean isManaged(Class<?> type) {
-        return type.isAnnotationPresent(InjectComponent.class)
-                || type.isAnnotationPresent(ListenerComponent.class)
-                || type.isAnnotationPresent(CommandComponent.class)
-                || type.isAnnotationPresent(ServiceComponent.class);
-    }
-
     private void registerBuiltIns(JavaPlugin plugin, LibApi lib) {
         singletons.put(plugin.getClass(), plugin);
         singletons.put(JavaPlugin.class, plugin);
@@ -151,7 +193,15 @@ public final class ComponentContainer {
         singletons.put(FloatingTextService.class, lib.floatingTextService());
         singletons.put(MenuService.class, lib.menuService());
         singletons.put(PlayerLoadingGate.class, lib.playerLoadingGate());
+        singletons.put(PluginTaskScope.class, new PluginTaskScope(plugin));
         singletons.put(ComponentContainer.class, this);
+    }
+
+    private <T> List<Class<?>> candidateTypes(Class<T> contract) {
+        return managedTypes.stream()
+                .filter(contract::isAssignableFrom)
+                .sorted(Comparator.comparing(Class::getName))
+                .toList();
     }
 
     private <T> T instantiate(Class<T> requestedType, Class<? extends T> implementation) {
@@ -181,24 +231,9 @@ public final class ComponentContainer {
         } catch (ReflectiveOperationException | RuntimeException exception) {
             throw componentFailure(implementation, exception);
         } finally {
-            resolving.remove(resolving.size() - 1);
+            resolving.removeLast();
             if (resolving.isEmpty()) resolvingTypes.remove();
         }
-    }
-
-    @SuppressWarnings("unchecked")
-    private static <T> Constructor<? extends T> resolveConstructor(Class<? extends T> implementation) {
-        List<Constructor<?>> constructors = new ArrayList<>();
-        for (Constructor<?> constructor : implementation.getDeclaredConstructors()) {
-            if (!Modifier.isPrivate(constructor.getModifiers())) constructors.add(constructor);
-        }
-        if (constructors.size() != 1) {
-            throw new IllegalStateException(
-                    "Injectable component must declare exactly one non-private constructor: "
-                            + implementation.getName()
-            );
-        }
-        return (Constructor<? extends T>) constructors.getFirst();
     }
 
     private <T> Class<? extends T> resolveImplementation(Class<T> requestedType) {
@@ -237,25 +272,5 @@ public final class ComponentContainer {
         throw new IllegalStateException(
                 "Multiple Lib components implement " + requestedType.getName() + ": " + candidates
         );
-    }
-
-    private static IllegalStateException componentFailure(Class<?> implementation, Throwable failure) {
-        return new IllegalStateException(
-                "Failed to create Lib component: " + implementation.getName(),
-                failure
-        );
-    }
-
-    private static String formatCircularDependency(List<Class<?>> resolving, Class<?> repeatedType) {
-        List<String> names = new ArrayList<>();
-        for (Class<?> type : resolving) names.add(type.getName());
-        names.add(repeatedType.getName());
-        return "Circular Lib component dependency detected: " + String.join(" -> ", names);
-    }
-
-    private static String requireBasePackage(String value) {
-        String packageName = Objects.requireNonNull(value, "basePackage").trim();
-        if (packageName.isBlank()) throw new IllegalArgumentException("basePackage cannot be blank");
-        return packageName;
     }
 }

@@ -18,5 +18,6 @@ public interface SqlWork<T> {
      * @return operation result
      * @throws SQLException when the database rejects the operation
      */
+    @SuppressWarnings("SameReturnValue")
     T execute(Connection connection) throws SQLException;
 }

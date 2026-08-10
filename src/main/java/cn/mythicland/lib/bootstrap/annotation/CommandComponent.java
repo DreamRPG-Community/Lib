@@ -11,4 +11,25 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.TYPE)
 public @interface CommandComponent {
+
+    /**
+     * Returns the command key declared in plugin.yml.
+     *
+     * @return command key declared in plugin.yml
+     */
+    String value();
+
+    /**
+     * Returns the default permission inherited by annotated handlers.
+     *
+     * @return default permission node
+     */
+    String permission() default "";
+
+    /**
+     * Indicates whether Lib should replace the unqualified global command mapping.
+     *
+     * @return true when the command must take over an existing global command
+     */
+    boolean takeOverGlobalMapping() default false;
 }

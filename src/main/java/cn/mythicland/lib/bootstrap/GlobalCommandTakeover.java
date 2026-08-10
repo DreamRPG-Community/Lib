@@ -27,25 +27,6 @@ final class GlobalCommandTakeover {
         this.knownCommands = resolveKnownCommands(resolveCommandMap(plugin));
     }
 
-    void install(PluginCommand command) {
-        Objects.requireNonNull(command, "command");
-        if (!installed) previousCommand = knownCommands.get(commandName);
-        knownCommands.put(commandName, command);
-        pluginCommand = command;
-        installed = true;
-    }
-
-    void restore() {
-        if (!installed) return;
-        if (knownCommands.get(commandName) == pluginCommand) {
-            if (previousCommand == null) knownCommands.remove(commandName);
-            else knownCommands.put(commandName, previousCommand);
-        }
-        installed = false;
-        pluginCommand = null;
-        previousCommand = null;
-    }
-
     private static CommandMap resolveCommandMap(JavaPlugin plugin) {
         try {
             Method method = plugin.getServer().getClass().getMethod("getCommandMap");
@@ -81,5 +62,24 @@ final class GlobalCommandTakeover {
             }
         }
         throw new IllegalStateException("Bukkit command map does not expose knownCommands");
+    }
+
+    void install(PluginCommand command) {
+        Objects.requireNonNull(command, "command");
+        if (!installed) previousCommand = knownCommands.get(commandName);
+        knownCommands.put(commandName, command);
+        pluginCommand = command;
+        installed = true;
+    }
+
+    void restore() {
+        if (!installed) return;
+        if (knownCommands.get(commandName) == pluginCommand) {
+            if (previousCommand == null) knownCommands.remove(commandName);
+            else knownCommands.put(commandName, previousCommand);
+        }
+        installed = false;
+        pluginCommand = null;
+        previousCommand = null;
     }
 }

@@ -9,7 +9,7 @@ import java.util.Objects;
 /**
  * Describes the verified libraries loaded into one plugin-owned dependency class loader.
  *
- * @param jars       verified JAR paths in load order
+ * @param jars        verified JAR paths in load order
  * @param classLoader class loader that received the JAR URLs, with the plugin loader as parent
  */
 public record LibraryLoadResult(
@@ -20,6 +20,7 @@ public record LibraryLoadResult(
     /**
      * Creates an immutable result snapshot.
      */
+    @SuppressWarnings("DataFlowIssue")
     public LibraryLoadResult {
         jars = List.copyOf(Objects.requireNonNull(jars, "jars"));
         classLoader = Objects.requireNonNull(classLoader, "classLoader");

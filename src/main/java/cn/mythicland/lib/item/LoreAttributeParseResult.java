@@ -13,15 +13,6 @@ public record LoreAttributeParseResult(
         Optional<String> error
 ) {
 
-    /**
-     * Parsing state for a lore line.
-     */
-    public enum Status {
-        NOT_ATTRIBUTE,
-        VALID,
-        INVALID
-    }
-
     public LoreAttributeParseResult {
         Objects.requireNonNull(status, "status");
         Objects.requireNonNull(label, "label");
@@ -87,5 +78,14 @@ public record LoreAttributeParseResult(
      */
     public boolean isValid() {
         return status == Status.VALID;
+    }
+
+    /**
+     * Parsing state for a lore line.
+     */
+    public enum Status {
+        NOT_ATTRIBUTE,
+        VALID,
+        INVALID
     }
 }

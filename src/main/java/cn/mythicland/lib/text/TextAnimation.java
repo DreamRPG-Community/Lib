@@ -38,6 +38,21 @@ public final class TextAnimation {
         return new TextAnimation(parsed);
     }
 
+    private static TextAnimationFrame parseEntry(String rawEntry) {
+        String entry = Objects.requireNonNull(rawEntry, "animation entry");
+        Matcher matcher = HOLD_SUFFIX.matcher(entry);
+        if (!matcher.matches()) return new TextAnimationFrame(entry, 1);
+
+        String text = matcher.group(1);
+        int holdTicks;
+        try {
+            holdTicks = Integer.parseInt(matcher.group(2));
+        } catch (NumberFormatException exception) {
+            throw new IllegalArgumentException("Animation hold count is invalid: " + rawEntry, exception);
+        }
+        return new TextAnimationFrame(text, holdTicks);
+    }
+
     /**
      * Returns the parsed frames.
      *
@@ -70,20 +85,5 @@ public final class TextAnimation {
      */
     public long totalHoldTicks() {
         return totalHoldTicks;
-    }
-
-    private static TextAnimationFrame parseEntry(String rawEntry) {
-        String entry = Objects.requireNonNull(rawEntry, "animation entry");
-        Matcher matcher = HOLD_SUFFIX.matcher(entry);
-        if (!matcher.matches()) return new TextAnimationFrame(entry, 1);
-
-        String text = matcher.group(1);
-        int holdTicks;
-        try {
-            holdTicks = Integer.parseInt(matcher.group(2));
-        } catch (NumberFormatException exception) {
-            throw new IllegalArgumentException("Animation hold count is invalid: " + rawEntry, exception);
-        }
-        return new TextAnimationFrame(text, holdTicks);
     }
 }

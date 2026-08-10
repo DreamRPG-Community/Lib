@@ -18,7 +18,7 @@ class MaterialIconCatalogTest {
                 "https://assets.mcasset.cloud/1.12.2/assets/minecraft/textures/blocks/wool_colored_red.png",
                 icons.getFirst()
         );
-        assertThrows(UnsupportedOperationException.class, () -> icons.clear());
+        assertThrows(UnsupportedOperationException.class, icons::clear);
     }
 
     @Test

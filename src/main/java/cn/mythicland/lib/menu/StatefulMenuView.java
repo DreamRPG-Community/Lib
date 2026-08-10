@@ -7,6 +7,7 @@ import org.bukkit.inventory.Inventory;
 /**
  * Optional menu lifecycle contract for views that persist mutable inventory state.
  */
+@SuppressWarnings("EmptyMethod")
 public interface StatefulMenuView extends MenuView {
 
     /**

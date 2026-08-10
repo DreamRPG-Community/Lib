@@ -18,14 +18,7 @@ import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitTask;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 
 /**
  * DecentHolograms-backed client-side floating text for the shared Lib runtime.
@@ -51,6 +44,17 @@ public final class DecentFloatingTextService implements FloatingTextService, Lis
     public DecentFloatingTextService(JavaPlugin owner) {
         this.owner = Objects.requireNonNull(owner, "owner");
         owner.getServer().getPluginManager().registerEvents(this, owner);
+    }
+
+    private static void ensurePrimaryThread() {
+        if (!Bukkit.isPrimaryThread()) {
+            throw new IllegalStateException("Floating text must be shown on the Bukkit primary thread");
+        }
+    }
+
+    private static int displayRange(double viewDistance) {
+        double rounded = Math.ceil(viewDistance);
+        return Math.clamp((int) rounded, 1, Integer.MAX_VALUE);
     }
 
     @Override
@@ -134,23 +138,12 @@ public final class DecentFloatingTextService implements FloatingTextService, Lis
         }
     }
 
-    private static void ensurePrimaryThread() {
-        if (!Bukkit.isPrimaryThread()) {
-            throw new IllegalStateException("Floating text must be shown on the Bukkit primary thread");
-        }
-    }
-
-    private static int displayRange(double viewDistance) {
-        double rounded = Math.ceil(viewDistance);
-        return (int) Math.min(Integer.MAX_VALUE, Math.max(1.0D, rounded));
-    }
-
     private static final class DecentFloatingTextSession implements FloatingTextHandle {
 
         private final DecentFloatingTextService service;
-        private Location anchor;
         private final UUID id = UUID.randomUUID();
         private final Set<UUID> visibleTo = new HashSet<>();
+        private Location anchor;
         private FloatingTextSpec specification;
         private Hologram hologram;
         private HologramPage page;

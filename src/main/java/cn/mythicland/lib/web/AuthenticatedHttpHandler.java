@@ -59,6 +59,7 @@ public abstract class AuthenticatedHttpHandler implements HttpHandler {
      * @param request request
      * @return whether authentication is required
      */
+    @SuppressWarnings("SameReturnValue")
     protected boolean requiresAuthentication(WebRequest request) {
         return true;
     }
@@ -70,5 +71,6 @@ public abstract class AuthenticatedHttpHandler implements HttpHandler {
      * @param response response writer
      * @throws IOException if the route fails to read or write the exchange
      */
+    @SuppressWarnings("RedundantThrows")
     protected abstract void handleAuthenticated(WebRequest request, WebResponse response) throws IOException;
 }

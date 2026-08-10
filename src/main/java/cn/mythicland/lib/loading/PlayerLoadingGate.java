@@ -13,15 +13,7 @@ import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.EntityPickupItemEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
-import org.bukkit.event.player.PlayerCommandPreprocessEvent;
-import org.bukkit.event.player.PlayerDropItemEvent;
-import org.bukkit.event.player.PlayerItemConsumeEvent;
-import org.bukkit.event.player.PlayerItemHeldEvent;
-import org.bukkit.event.player.PlayerInteractEntityEvent;
-import org.bukkit.event.player.PlayerInteractEvent;
-import org.bukkit.event.player.PlayerMoveEvent;
-import org.bukkit.event.player.PlayerQuitEvent;
-import org.bukkit.event.player.PlayerSwapHandItemsEvent;
+import org.bukkit.event.player.*;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
@@ -38,10 +30,10 @@ import java.util.UUID;
 public final class PlayerLoadingGate implements Listener, AutoCloseable {
 
     private static final int JUMP_AMPLIFIER = 128;
+    private static final int SLOW_AMPLIFIER = 4;
     private static final int EFFECT_DURATION_TICKS = Integer.MAX_VALUE;
     private static final long EFFECT_REFRESH_TICKS = 10L;
 
-    private final JavaPlugin owner;
     private final Map<UUID, Map<PotionEffectType, PotionEffect>> previousEffects = new HashMap<>();
     private final Map<UUID, Boolean> loadingPlayers = new HashMap<>();
     private final BukkitTask effectTask;
@@ -53,7 +45,7 @@ public final class PlayerLoadingGate implements Listener, AutoCloseable {
      * @param owner Lib plugin owning the task and listener
      */
     public PlayerLoadingGate(JavaPlugin owner) {
-        this.owner = Objects.requireNonNull(owner, "owner");
+        Objects.requireNonNull(owner, "owner");
         owner.getServer().getPluginManager().registerEvents(this, owner);
         this.effectTask = owner.getServer().getScheduler().runTaskTimer(
                 owner,
@@ -61,6 +53,43 @@ public final class PlayerLoadingGate implements Listener, AutoCloseable {
                 0L,
                 EFFECT_REFRESH_TICKS
         );
+    }
+
+    private static void rememberEffect(
+            Player player,
+            PotionEffectType type,
+            Map<PotionEffectType, PotionEffect> originals
+    ) {
+        PotionEffect existing = player.getPotionEffect(type);
+        if (existing != null) originals.put(type, existing);
+    }
+
+    private static void applyEffects(Player player) {
+        player.addPotionEffect(new PotionEffect(
+                PotionEffectType.BLINDNESS,
+                EFFECT_DURATION_TICKS,
+                0,
+                false,
+                false
+        ), true);
+        player.addPotionEffect(new PotionEffect(
+                PotionEffectType.JUMP,
+                EFFECT_DURATION_TICKS,
+                JUMP_AMPLIFIER,
+                false,
+                false
+        ), true);
+        player.addPotionEffect(new PotionEffect(
+                PotionEffectType.SLOW,
+                EFFECT_DURATION_TICKS,
+                SLOW_AMPLIFIER,
+                false,
+                false
+        ), true);
+    }
+
+    private static void ensurePrimaryThread() {
+        if (!Bukkit.isPrimaryThread()) throw new IllegalStateException("Loading gate requires the main thread");
     }
 
     /**
@@ -79,6 +108,7 @@ public final class PlayerLoadingGate implements Listener, AutoCloseable {
         Map<PotionEffectType, PotionEffect> originals = new HashMap<>();
         rememberEffect(target, PotionEffectType.BLINDNESS, originals);
         rememberEffect(target, PotionEffectType.JUMP, originals);
+        rememberEffect(target, PotionEffectType.SLOW, originals);
         previousEffects.put(uniqueId, originals);
         loadingPlayers.put(uniqueId, Boolean.TRUE);
         applyEffects(target);
@@ -214,32 +244,6 @@ public final class PlayerLoadingGate implements Listener, AutoCloseable {
         HandlerList.unregisterAll(this);
     }
 
-    private static void rememberEffect(
-            Player player,
-            PotionEffectType type,
-            Map<PotionEffectType, PotionEffect> originals
-    ) {
-        PotionEffect existing = player.getPotionEffect(type);
-        if (existing != null) originals.put(type, existing);
-    }
-
-    private static void applyEffects(Player player) {
-        player.addPotionEffect(new PotionEffect(
-                PotionEffectType.BLINDNESS,
-                EFFECT_DURATION_TICKS,
-                0,
-                false,
-                false
-        ), true);
-        player.addPotionEffect(new PotionEffect(
-                PotionEffectType.JUMP,
-                EFFECT_DURATION_TICKS,
-                JUMP_AMPLIFIER,
-                false,
-                false
-        ), true);
-    }
-
     private void refreshEffects() {
         if (closed) return;
         for (UUID uniqueId : Map.copyOf(loadingPlayers).keySet()) {
@@ -255,12 +259,9 @@ public final class PlayerLoadingGate implements Listener, AutoCloseable {
         loadingPlayers.remove(uniqueId);
         player.removePotionEffect(PotionEffectType.BLINDNESS);
         player.removePotionEffect(PotionEffectType.JUMP);
+        player.removePotionEffect(PotionEffectType.SLOW);
         Map<PotionEffectType, PotionEffect> originals = previousEffects.remove(uniqueId);
         if (originals == null) return;
         for (PotionEffect effect : originals.values()) player.addPotionEffect(effect, true);
-    }
-
-    private static void ensurePrimaryThread() {
-        if (!Bukkit.isPrimaryThread()) throw new IllegalStateException("Loading gate requires the main thread");
     }
 }

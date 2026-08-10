@@ -50,6 +50,14 @@ public record NumericRange(double minimum, double maximum, boolean percent) {
         return new NumericRange(minimum, maximum, matcher.group(3) != null);
     }
 
+    private static double parseNumber(String text, String source) {
+        try {
+            return Double.parseDouble(text);
+        } catch (NumberFormatException exception) {
+            throw new IllegalArgumentException("Invalid numeric value in: " + source, exception);
+        }
+    }
+
     /**
      * Returns whether this range contains a single value.
      *
@@ -66,13 +74,5 @@ public record NumericRange(double minimum, double maximum, boolean percent) {
      */
     public double average() {
         return minimum + (maximum - minimum) / 2.0D;
-    }
-
-    private static double parseNumber(String text, String source) {
-        try {
-            return Double.parseDouble(text);
-        } catch (NumberFormatException exception) {
-            throw new IllegalArgumentException("Invalid numeric value in: " + source, exception);
-        }
     }
 }

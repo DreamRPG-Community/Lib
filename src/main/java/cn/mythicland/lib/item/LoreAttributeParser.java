@@ -55,7 +55,7 @@ public final class LoreAttributeParser {
         if (line == null || line.isBlank()) return LoreAttributeParseResult.notAttribute();
 
         String colored = LegacyText.colorize(line);
-        if (colored == null || colored.isBlank()) return LoreAttributeParseResult.notAttribute();
+        if (colored.isBlank()) return LoreAttributeParseResult.notAttribute();
         Matcher matcher = LABEL_VALUE_PATTERN.matcher(colored);
         if (!matcher.matches()) return LoreAttributeParseResult.notAttribute();
 

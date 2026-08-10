@@ -62,7 +62,7 @@ public final class VersionedPlayerSession<T> {
     /**
      * Marks a candidate as persisted.
      *
-     * @param candidate candidate returned by {@link #saveCandidate()}
+     * @param candidate   candidate returned by {@link #saveCandidate()}
      * @param nextVersion newly persisted database version
      */
     public synchronized void completeSave(SaveCandidate<T> candidate, long nextVersion) {
@@ -107,6 +107,7 @@ public final class VersionedPlayerSession<T> {
         /**
          * Validates candidate values.
          */
+        @SuppressWarnings("DataFlowIssue")
         public SaveCandidate {
             uniqueId = Objects.requireNonNull(uniqueId, "uniqueId");
             snapshot = Objects.requireNonNull(snapshot, "snapshot");

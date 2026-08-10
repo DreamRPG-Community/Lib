@@ -18,8 +18,8 @@ public interface ContainerAnimationService extends AutoCloseable {
     /**
      * Opens a client-side animation for a real block and one viewer.
      *
-     * @param sourceBlock source container block
-     * @param viewer      player receiving the interaction sound
+     * @param sourceBlock   source container block
+     * @param viewer        player receiving the interaction sound
      * @param specification animation parameters
      * @return handle that must be closed when the container is closed
      */

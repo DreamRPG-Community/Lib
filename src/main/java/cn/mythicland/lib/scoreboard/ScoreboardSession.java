@@ -4,20 +4,9 @@ import cn.mythicland.lib.text.LegacyText;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
-import org.bukkit.scoreboard.DisplaySlot;
-import org.bukkit.scoreboard.Objective;
-import org.bukkit.scoreboard.Score;
-import org.bukkit.scoreboard.Scoreboard;
-import org.bukkit.scoreboard.Team;
+import org.bukkit.scoreboard.*;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 
 /**
  * Owns one Bukkit sidebar scoreboard, its rendered lines, viewers, and teams.
@@ -56,6 +45,14 @@ public final class ScoreboardSession implements AutoCloseable {
         this.objective.setDisplaySlot(DisplaySlot.SIDEBAR);
     }
 
+    private static String createEntry(String line, int index) {
+        String suffix = ChatColor.COLOR_CHAR + Integer.toHexString(index);
+        if (line.length() + suffix.length() > 40) {
+            throw new IllegalArgumentException("Scoreboard line cannot exceed 38 characters: " + line);
+        }
+        return line + suffix;
+    }
+
     /**
      * Sets the sidebar title.
      *
@@ -80,7 +77,7 @@ public final class ScoreboardSession implements AutoCloseable {
      * objectives cannot change criteria after registration. Reusing the same criteria only
      * updates the display metadata and keeps the client-side objective stable.</p>
      *
-     * @param criteria Bukkit scoreboard criteria, for example {@code health}
+     * @param criteria    Bukkit scoreboard criteria, for example {@code health}
      * @param displayName translated objective label shown below player names
      */
     public void setBelowName(String criteria, String displayName) {
@@ -284,7 +281,7 @@ public final class ScoreboardSession implements AutoCloseable {
     /**
      * Changes one owned team's vanilla name-tag visibility.
      *
-     * @param teamName  owned team name
+     * @param teamName   owned team name
      * @param visibility desired visibility status
      */
     public void setTeamNameTagVisibility(String teamName, Team.OptionStatus visibility) {
@@ -357,14 +354,6 @@ public final class ScoreboardSession implements AutoCloseable {
         unregisterBelowNameObjective();
         objective.unregister();
         renderedEntries.clear();
-    }
-
-    private static String createEntry(String line, int index) {
-        String suffix = ChatColor.COLOR_CHAR + Integer.toHexString(index);
-        if (line.length() + suffix.length() > 40) {
-            throw new IllegalArgumentException("Scoreboard line cannot exceed 38 characters: " + line);
-        }
-        return line + suffix;
     }
 
     private void removeEntryFromOtherTeams(Team target, String entry) {
