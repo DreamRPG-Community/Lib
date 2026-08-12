@@ -5,6 +5,8 @@ import cn.mythicland.lib.container.ContainerAnimationService;
 import cn.mythicland.lib.container.PacketContainerAnimationService;
 import cn.mythicland.lib.database.DatabaseService;
 import cn.mythicland.lib.integration.*;
+import cn.mythicland.lib.item.ItemMarkerCodec;
+import cn.mythicland.lib.item.ReflectiveItemMarkerCodec;
 import cn.mythicland.lib.library.LibraryService;
 import cn.mythicland.lib.loading.PlayerLoadingGate;
 import cn.mythicland.lib.material.EnchantmentCatalog;
@@ -51,6 +53,7 @@ public final class LibApi implements AutoCloseable {
     private final MaterialCatalog materialCatalog;
     private final MaterialIconCatalog materialIconCatalog;
     private final EnchantmentCatalog enchantmentCatalog;
+    private final ItemMarkerCodec itemMarkerCodec;
     private final WebService webService;
     private final StorageService storageService;
     private final PathService pathService;
@@ -102,6 +105,7 @@ public final class LibApi implements AutoCloseable {
         this.materialCatalog = MaterialCatalog.bundled();
         this.materialIconCatalog = new MaterialIconCatalog();
         this.enchantmentCatalog = EnchantmentCatalog.runtime();
+        this.itemMarkerCodec = new ReflectiveItemMarkerCodec(owner.getLogger());
         this.asyncExecutor = Executors.newFixedThreadPool(poolSize, namedThreadFactory());
         this.webService = new WebService(asyncExecutor);
         this.storageService = new StorageService();
@@ -449,6 +453,15 @@ public final class LibApi implements AutoCloseable {
      */
     public EnchantmentCatalog enchantmentCatalog() {
         return enchantmentCatalog;
+    }
+
+    /**
+     * Returns the shared hidden item marker codec.
+     *
+     * @return version-isolated item marker codec
+     */
+    public ItemMarkerCodec itemMarkerCodec() {
+        return itemMarkerCodec;
     }
 
     /**

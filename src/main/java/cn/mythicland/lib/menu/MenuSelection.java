@@ -19,6 +19,11 @@ import java.util.Objects;
  */
 public final class MenuSelection {
 
+    /**
+     * Paper 1.12.2 does not expose the legacy {@code Sound.CLICK} enum. This stone-button sound
+     * is the short legacy click and remains translatable for 1.8 clients through ViaVersion.
+     */
+    private static final Sound CLICK_SOUND = Sound.BLOCK_STONE_BUTTON_CLICK_ON;
     private static final float CLICK_VOLUME = 1.0F;
     private static final float CLICK_PITCH = 2.0F;
 
@@ -172,15 +177,14 @@ public final class MenuSelection {
     }
 
     /**
-     * Plays the shared selection feedback sound at twice the normal pitch.
+     * Plays the shared legacy-compatible selection feedback sound at twice the normal pitch.
      *
-     * <p>Paper 1.12.2 exposes the legacy UI click as {@link Sound#UI_BUTTON_CLICK}; the sound is
-     * played only after the caller has successfully changed its setting.</p>
+     * <p>The sound is played only after the caller has successfully changed its setting.</p>
      *
      * @param player player receiving the sound
      */
     public static void playClickSound(Player player) {
         Objects.requireNonNull(player, "player");
-        player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, CLICK_VOLUME, CLICK_PITCH);
+        player.playSound(player.getLocation(), CLICK_SOUND, CLICK_VOLUME, CLICK_PITCH);
     }
 }
