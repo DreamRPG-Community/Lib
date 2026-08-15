@@ -1,5 +1,6 @@
 package cn.mythicland.lib.api;
 
+import cn.mythicland.lib.admin.AdminPanelService;
 import cn.mythicland.lib.bootstrap.PluginBootstrap;
 import cn.mythicland.lib.container.ContainerAnimationService;
 import cn.mythicland.lib.container.PacketContainerAnimationService;
@@ -44,6 +45,7 @@ public final class LibApi implements AutoCloseable {
 
     private final JavaPlugin owner;
     private final MenuService menuService;
+    private final AdminPanelService adminPanelService;
     private final ContainerAnimationService containerAnimationService;
     private final FloatingTextService floatingTextService;
     private final PlayerLoadingGate playerLoadingGate;
@@ -97,6 +99,7 @@ public final class LibApi implements AutoCloseable {
         this.owner = Objects.requireNonNull(owner, "owner");
         this.menuService = Objects.requireNonNull(menuService, "menuService");
         this.containerAnimationService = new PacketContainerAnimationService(owner);
+        this.adminPanelService = new AdminPanelService(owner, menuService, containerAnimationService);
         this.floatingTextService = new DecentFloatingTextService(owner);
         this.playerLoadingGate = Objects.requireNonNull(playerLoadingGate, "playerLoadingGate");
         this.libraryService = new LibraryService();
@@ -406,6 +409,15 @@ public final class LibApi implements AutoCloseable {
     }
 
     /**
+     * Returns the shared administrator panel registry.
+     *
+     * @return administrator panel service
+     */
+    public AdminPanelService adminPanelService() {
+        return adminPanelService;
+    }
+
+    /**
      * Returns the generic client-side container animation service.
      *
      * @return container animation service
@@ -477,6 +489,7 @@ public final class LibApi implements AutoCloseable {
         scoreboardService.close();
         playerLoadingGate.close();
         asyncExecutor.shutdownNow();
+        adminPanelService.close();
         menuService.close();
         containerAnimationService.close();
         floatingTextService.close();

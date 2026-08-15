@@ -35,6 +35,8 @@ public final class MenuService implements Listener, AutoCloseable {
 
     /**
      * Opens a view for a player. Calls from an asynchronous thread are moved to the primary thread.
+     * When the current managed inventory has the same size, the view is replaced in place so the
+     * client does not receive a close/open pair and lose its mouse position.
      *
      * @param player the viewer
      * @param view   the view to open
@@ -146,6 +148,13 @@ public final class MenuService implements Listener, AutoCloseable {
     }
 
     private void openNow(Player player, MenuView view) {
+        MenuHolder current = openMenus.get(player.getUniqueId());
+        if (current != null
+                && current.isVisibleTo(player)
+                && view.size(player) == current.inventory.getSize()) {
+            replaceNow(player, current, view);
+            return;
+        }
         close(player);
 
         int size = view.size(player);
@@ -160,16 +169,43 @@ public final class MenuService implements Listener, AutoCloseable {
         player.openInventory(inventory);
     }
 
+    private void replaceNow(Player player, MenuHolder holder, MenuView view) {
+        MenuView previousView = holder.view;
+        holder.view = view;
+        try {
+            renderAtomically(player, view, holder.inventory);
+            // Paper 1.12.2 has no supported in-place inventory-title update. Keeping this window
+            // open is intentional: it preserves the client-side mouse position during navigation.
+            player.updateInventory();
+            notifyClose(player, previousView, holder.inventory);
+        } catch (RuntimeException exception) {
+            holder.view = previousView;
+            openMenus.remove(player.getUniqueId(), holder);
+            player.closeInventory();
+            throw exception;
+        }
+    }
+
     private void refreshNow(Player player, MenuHolder holder) {
         int size = holder.view.size(player);
-        String title = holder.view.title(player);
-        if (size != holder.inventory.getSize() || !title.equals(player.getOpenInventory().getTitle())) {
+        if (size != holder.inventory.getSize()) {
             openNow(player, holder.view);
             return;
         }
-        holder.inventory.clear();
-        holder.view.render(player, holder.inventory);
+        renderAtomically(player, holder.view, holder.inventory);
         player.updateInventory();
+    }
+
+    /**
+     * Renders into a detached inventory before publishing the complete slot array to the visible
+     * inventory. Calling {@code clear()} on the visible inventory first causes Paper 1.12.2 to
+     * send a blank intermediate state; the client can display that state as a short gap while a
+     * management panel is switching.
+     */
+    private void renderAtomically(Player player, MenuView view, Inventory target) {
+        Inventory staging = Bukkit.createInventory(null, target.getSize(), view.title(player));
+        view.render(player, staging);
+        target.setContents(Arrays.copyOf(staging.getContents(), staging.getSize()));
     }
 
     private MenuHolder holder(Inventory inventory) {
@@ -179,14 +215,16 @@ public final class MenuService implements Listener, AutoCloseable {
     }
 
     private void notifyClose(Player player, MenuHolder holder) {
-        if (holder.view instanceof StatefulMenuView statefulView) {
-            statefulView.onClose(player, holder.inventory);
-        }
+        notifyClose(player, holder.view, holder.inventory);
+    }
+
+    private void notifyClose(Player player, MenuView view, Inventory inventory) {
+        if (view instanceof StatefulMenuView statefulView) statefulView.onClose(player, inventory);
     }
 
     private static final class MenuHolder implements InventoryHolder {
         private final UUID viewerUniqueId;
-        private final MenuView view;
+        private MenuView view;
         private Inventory inventory;
 
         private MenuHolder(UUID viewerUniqueId, MenuView view) {
@@ -197,6 +235,11 @@ public final class MenuService implements Listener, AutoCloseable {
         @Override
         public Inventory getInventory() {
             return inventory;
+        }
+
+        private boolean isVisibleTo(Player player) {
+            Inventory top = player.getOpenInventory().getTopInventory();
+            return top == inventory || (top != null && top.getHolder() == this);
         }
     }
 }

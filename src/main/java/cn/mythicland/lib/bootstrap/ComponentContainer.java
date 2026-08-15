@@ -1,5 +1,6 @@
 package cn.mythicland.lib.bootstrap;
 
+import cn.mythicland.lib.admin.AdminPanelService;
 import cn.mythicland.lib.api.LibApi;
 import cn.mythicland.lib.bootstrap.annotation.*;
 import cn.mythicland.lib.container.ContainerAnimationService;
@@ -190,6 +191,7 @@ public final class ComponentContainer {
         singletons.put(BukkitScheduler.class, plugin.getServer().getScheduler());
         singletons.put(Logger.class, plugin.getLogger());
         singletons.put(LibApi.class, lib);
+        singletons.put(AdminPanelService.class, lib.adminPanelService());
         singletons.put(ContainerAnimationService.class, lib.containerAnimationService());
         singletons.put(FloatingTextService.class, lib.floatingTextService());
         singletons.put(MenuService.class, lib.menuService());
